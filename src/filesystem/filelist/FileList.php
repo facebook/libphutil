@@ -35,10 +35,10 @@
  * @task test   Testing File Lists
  * @group filesystem
  */
-final class FileList {
+class FileList {
 
-  private $files = array();
-  private $dirs  = array();
+  protected $files = array();
+  protected $dirs  = array();
 
   /**
    * Build a new FileList from an array of paths, e.g. from $argv.
