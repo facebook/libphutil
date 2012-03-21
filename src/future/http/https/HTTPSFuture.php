@@ -66,6 +66,15 @@ final class HTTPSFuture extends BaseHTTPFuture {
       curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
     }
 
+    $headers = $this->getHeaders();
+    if ($headers) {
+      for($i = 0; $i < count($headers); $i++) {
+        list($name, $value) = $headers[$i];
+          $headers[$i] = $name . ': ' . $value;
+      }
+      curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+    }
+
     // Set the requested HTTP method, e.g. GET / POST / PUT.
     curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $this->getMethod());
 
