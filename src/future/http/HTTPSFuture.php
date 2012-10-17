@@ -152,6 +152,9 @@ final class HTTPSFuture extends BaseHTTPFuture {
     }
     curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
 
+    // If this is not set to 3 curl commands will fail with error code 35.
+    curl_setopt($curl, CURLOPT_SSLVERSION, 3);
+
     $result = curl_exec($curl);
     $err_code = curl_errno($curl);
 
