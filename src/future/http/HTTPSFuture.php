@@ -1,21 +1,5 @@
 <?php
 
-/*
- * Copyright 2012 Facebook, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 /**
  * Very basic HTTPS future.
  *
@@ -151,6 +135,7 @@ final class HTTPSFuture extends BaseHTTPFuture {
       curl_setopt($curl, CURLOPT_CAINFO, $cabundle);
     }
     curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($curl, CURLOPT_SSLVERSION, 3);
 
     // If this is not set to 3 curl commands will fail with error code 35.
     curl_setopt($curl, CURLOPT_SSLVERSION, 3);

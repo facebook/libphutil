@@ -1,21 +1,5 @@
 <?php
 
-/*
- * Copyright 2012 Facebook, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 /**
  * Identity function, returns its argument unmodified.
  *
@@ -659,8 +643,11 @@ function array_mergev(array $arrayv) {
 
 
 /**
- * Split a corpus of text into lines. This function splits on "\r", "\n",
- * "\r\n", or a mixture of any of them.
+ * Split a corpus of text into lines. This function splits on "\n", "\r\n", or
+ * a mixture of any of them.
+ *
+ * NOTE: This function does not treat "\r" on its own as a newline because none
+ * of SVN, Git or Mercurial do on any OS.
  *
  * @param string Block of text to be split into lines.
  * @param bool If true, retain line endings in result strings.
@@ -672,11 +659,11 @@ function phutil_split_lines($corpus, $retain_endings = true) {
     return array('');
   }
 
-  // Split on "\r\n", "\r", or "\n", but don't split "\r\n" into two lines.
+  // Split on "\r\n" or "\n".
   if ($retain_endings) {
-    $lines = preg_split('/(?<=\r)(?!\n)|(?<=\n)/', $corpus);
+    $lines = preg_split('/(?<=\n)/', $corpus);
   } else {
-    $lines = preg_split('/\r(?!\n)|\r?\n/', $corpus);
+    $lines = preg_split('/\r?\n/', $corpus);
   }
 
   // If the text ends with "\n" or similar, we'll end up with an empty string

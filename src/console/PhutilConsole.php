@@ -1,21 +1,5 @@
 <?php
 
-/*
- * Copyright 2012 Facebook, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 /**
  * Provides access to the command-line console. Instead of reading from or
  * writing to stdin/stdout/stderr directly, this class provides a richer API
@@ -149,6 +133,11 @@ final class PhutilConsole {
     return $response->getData();
   }
 
+  public function sendMessage($data) {
+    $message = id(new PhutilConsoleMessage())->setData($data);
+    return $this->writeMessage($message);
+  }
+
   public function writeOut($pattern /* , ... */) {
     $args = func_get_args();
     return $this->writeTextMessage(PhutilConsoleMessage::TYPE_OUT, $args);
@@ -228,6 +217,8 @@ final class PhutilConsole {
     return $message;
   }
 
-
+  public function getServer() {
+    return $this->server;
+  }
 
 }

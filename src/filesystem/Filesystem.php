@@ -1,21 +1,5 @@
 <?php
 
-/*
- * Copyright 2012 Facebook, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 /**
  * Simple wrapper class for common filesystem tasks like reading and writing
  * files. When things go wrong, this class throws detailed exceptions with
@@ -308,8 +292,35 @@ final class Filesystem {
    * @return  string  Random bytestring of the provided length.
    *
    * @task file
+   *
+   * @phutil-external-symbol class COM
    */
   public static function readRandomBytes($number_of_bytes) {
+
+    if (phutil_is_windows()) {
+      if (!class_exists('COM')) {
+        throw new FilesystemException(
+          'CAPICOM.Utilities.1',
+          "Class 'COM' does not exist, you must enable php_com_dotnet.dll.");
+      }
+
+      try {
+        $com = new COM('CAPICOM.Utilities.1');
+      } catch (Exception $ex) {
+        throw new FilesystemException(
+          'CAPICOM.Utilities.1',
+          'Unable to load DLL, follow instructions at '.
+            'https://bugs.php.net/48498.');
+      }
+
+      try {
+        return $com->GetRandom($number_of_bytes);
+      } catch (Exception $ex) {
+        throw new FilesystemException(
+          'CAPICOM.Utilities.1',
+          'Unable to read random bytes through CAPICOM!');
+      }
+    }
 
     $urandom = @fopen('/dev/urandom', 'rb');
     if (!$urandom) {
