@@ -15,6 +15,8 @@ final class ConduitClient {
   protected $sessionKey;
   private $timeout = 300.0;
 
+  protected $basicAuthCredentials;
+
   public function getConnectionID() {
     return $this->connectionID;
   }
@@ -113,6 +115,9 @@ final class ConduitClient {
 
     $core_future->setMethod('POST');
     $core_future->setTimeout($this->timeout);
+    if (!empty($this->basicAuthCredentials)) {
+        $core_future->addHeader('Authorization', 'Basic '.$this->basicAuthCredentials);
+    }
 
     $profiler = PhutilServiceProfiler::getInstance();
     $this->profilerCallID = $profiler->beginServiceCall(
@@ -127,6 +132,10 @@ final class ConduitClient {
     $conduit_future->isReady();
 
     return $conduit_future;
+  }
+
+  public function setBasicAuthCredentials($username, $password) {
+    $this->basicAuthCredentials = base64_encode($username.':'.$password);
   }
 
 }
