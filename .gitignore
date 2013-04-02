@@ -28,3 +28,5 @@ parser.yacc.output
 
 # arc sratch directory.
 /.arc/
+
+/vendor/

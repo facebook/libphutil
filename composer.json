@@ -1,0 +1,188 @@
+{
+    "name": "facebook/libphutil",
+    "description": "libphutil is a collection of utility classes for PHP. Currently an unstable preview release.",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "email": "20after4@deviantart.com", 
+            "name": "20after4"
+        }, 
+        {
+            "email": "ahupp@facebook.com", 
+            "name": "Adam Hupp"
+        }, 
+        {
+            "email": "Afaque.Hussain@outlook.com", 
+            "name": "Afaque Hussain"
+        }, 
+        {
+            "email": "alanh@fb.com", 
+            "name": "Alan Huang"
+        }, 
+        {
+            "email": "agallagher@fb.com", 
+            "name": "Andrew Gallagher"
+        }, 
+        {
+            "email": "aran@facebook.com", 
+            "name": "Aran Donohue"
+        }, 
+        {
+            "email": "beng@fb.com", 
+            "name": "Ben Gertzfield"
+        }, 
+        {
+            "email": "bob.trahan@gmail.com", 
+            "name": "Bob Trahan"
+        }, 
+        {
+            "email": "brennan@mobiata.com", 
+            "name": "Brennan Taylor"
+        }, 
+        {
+            "email": "blc72@cornell.edu", 
+            "name": "Bryan Cuccioli"
+        }, 
+        {
+            "email": "chrisp@ifixit.com", 
+            "name": "Chris Patton"
+        }, 
+        {
+            "email": "cfratrik@gmail.com", 
+            "name": "Craig Fratrik"
+        }, 
+        {
+            "email": "edward@fb.com", 
+            "name": "Edward Speyer"
+        }, 
+        {
+            "email": "emir@dev3003.snc6.facebook.com", 
+            "name": "Emir Habul"
+        }, 
+        {
+            "email": "emir@fb.com", 
+            "name": "Emir Habul"
+        }, 
+        {
+            "email": "epriestley@javelinjs.com", 
+            "name": "epriestley"
+        }, 
+        {
+            "email": "epriestley@phabricator.com", 
+            "name": "epriestley"
+        }, 
+        {
+            "email": "git@epriestley.com", 
+            "name": "epriestley"
+        }, 
+        {
+            "email": "voldern@hoeggen.net", 
+            "name": "Espen Volden"
+        }, 
+        {
+            "email": "eugene.yunak@bskyb.com", 
+            "name": "Eugene Yunak"
+        }, 
+        {
+            "email": "epriestley@javelinjs.com", 
+            "name": "Evan Priestley"
+        }, 
+        {
+            "email": "hsb@group.is", 
+            "name": "Hafsteinn Baldvinsson"
+        }, 
+        {
+            "email": "hwang36@gmail.com", 
+            "name": "Hua Wang"
+        }, 
+        {
+            "email": "indiefan@gmail.com", 
+            "name": "indiefan"
+        }, 
+        {
+            "email": "jakub@vrana.cz", 
+            "name": "Jakub Vrana"
+        }, 
+        {
+            "email": "jungejason@fb.com", 
+            "name": "Jason Ge"
+        }, 
+        {
+            "email": "julius@seporaitis.net", 
+            "name": "Julius Seporaitis"
+        }, 
+        {
+            "email": "jun.ge.jason@fb.com", 
+            "name": "jungejason"
+        }, 
+        {
+            "email": "jungejason@fb.com", 
+            "name": "jungejason"
+        }, 
+        {
+            "email": "kzak@fb.com", 
+            "name": "katherine"
+        }, 
+        {
+            "email": "korvin@concrete5.org", 
+            "name": "Koolvin"
+        }, 
+        {
+            "email": "lovro@fb.com", 
+            "name": "lovro"
+        }, 
+        {
+            "email": "mareksapota@fb.com", 
+            "name": "Marek Sapota"
+        }, 
+        {
+            "email": "nharper@fb.com", 
+            "name": "Nicholas Harper"
+        }, 
+        {
+            "email": "nharper@fb.com", 
+            "name": "Nick Harper"
+        }, 
+        {
+            "email": "nharper@nharper.org", 
+            "name": "Nick Harper"
+        }, 
+        {
+            "email": "pad@fb.com", 
+            "name": "pad"
+        }, 
+        {
+            "email": "github@paulisageek.com", 
+            "name": "Paul Tarjan"
+        }, 
+        {
+            "email": "ricky@elrod.me", 
+            "name": "Ricky Elrod"
+        }, 
+        {
+            "email": "ryanmce@gmail.com", 
+            "name": "Ryan McElroy"
+        }, 
+        {
+            "email": "tuomas.pelkonen@fb.com", 
+            "name": "tuomaspelkonen"
+        }, 
+        {
+            "email": "tuomaspelkonen@fb.com", 
+            "name": "tuomaspelkonen"
+        }, 
+        {
+            "email": "jakubv@fb.com", 
+            "name": "vrana"
+        }, 
+        {
+            "email": "zach@fb.com", 
+            "name": "Zach Rait"
+        }
+    ],
+    "minimum-stability": "stable",
+    "include-path" : ["src/"],
+    "require": {
+
+    }
+}
