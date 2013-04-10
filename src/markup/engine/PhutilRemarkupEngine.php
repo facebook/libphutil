@@ -5,9 +5,15 @@
  */
 final class PhutilRemarkupEngine extends PhutilMarkupEngine {
 
+  const MODE_DEFAULT = 0;
+  const MODE_TEXT = 1;
+
   private $blockRules = array();
   private $config = array();
+  private $mode;
   private $metadata = array();
+  private $states = array();
+  private $postprocessRules = array();
 
   public function setConfig($key, $value) {
     $this->config[$key] = $value;
@@ -18,13 +24,41 @@ final class PhutilRemarkupEngine extends PhutilMarkupEngine {
     return idx($this->config, $key, $default);
   }
 
+  public function setMode($mode) {
+    $this->mode = $mode;
+    return $this;
+  }
+
+  public function isTextMode() {
+    return $this->mode & self::MODE_TEXT;
+  }
+
   public function setBlockRules(array $rules) {
     assert_instances_of($rules, 'PhutilRemarkupEngineBlockRule');
     $this->blockRules = $rules;
+    foreach ($this->blockRules as $rule) {
+      $rule->setEngine($this);
+    }
+
+    $post_rules = array();
+    foreach ($this->blockRules as $block_rule) {
+      foreach ($block_rule->getMarkupRules() as $rule) {
+        $key = $rule->getPostprocessKey();
+        if ($key !== null) {
+          $post_rules[$key] = $rule;
+        }
+      }
+    }
+
+    $this->postprocessRules = $post_rules;
+
     return $this;
   }
 
   public function getTextMetadata($key, $default = null) {
+    if (isset($this->metadata[$key])) {
+      return $this->metadata[$key];
+    }
     return idx($this->metadata, $key, $default);
   }
 
@@ -34,10 +68,16 @@ final class PhutilRemarkupEngine extends PhutilMarkupEngine {
   }
 
   public function storeText($text) {
+    if ($this->isTextMode()) {
+      $text = phutil_safe_html($text);
+    }
     return $this->storage->store($text);
   }
 
   public function overwriteStoredText($token, $new_text) {
+    if ($this->isTextMode()) {
+      $new_text = phutil_safe_html($new_text);
+    }
     $this->storage->overwrite($token, $new_text);
     return $this;
   }
@@ -46,21 +86,32 @@ final class PhutilRemarkupEngine extends PhutilMarkupEngine {
     return $this->postprocessText($this->preprocessText($text));
   }
 
-  private function setupProcessing() {
-    $this->metadata = array();
-    $this->storage = new PhutilRemarkupBlockStorage();
+  public function pushState($state) {
+    if (empty($this->states[$state])) {
+      $this->states[$state] = 0;
+    }
+    $this->states[$state]++;
+    return $this;
+  }
 
-    $block_rules = $this->blockRules;
-    if (empty($block_rules)) {
-      throw new Exception("Remarkup engine not configured with block rules.");
+  public function popState($state) {
+    if (empty($this->states[$state])) {
+      throw new Exception("State '{$state}' pushed more than popped!");
     }
-    foreach ($block_rules as $rule) {
-      $rule->setEngine($this);
+    $this->states[$state]--;
+    if (!$this->states[$state]) {
+      unset($this->states[$state]);
     }
+    return $this;
+  }
+
+  public function getState($state) {
+    return !empty($this->states[$state]);
   }
 
   public function preprocessText($text) {
-    $this->setupProcessing();
+    $this->metadata = array();
+    $this->storage = new PhutilRemarkupBlockStorage();
 
     // Apply basic block and paragraph normalization to the text. NOTE: We don't
     // strip trailing whitespace because it is semantic in some contexts,
@@ -128,23 +179,37 @@ final class PhutilRemarkupEngine extends PhutilMarkupEngine {
     unset($this->storage);
     $metadata = $this->metadata;
 
+    if ($this->isTextMode()) {
+      $output = implode("\n\n", $output)."\n";
+    } else {
+      $output = phutil_implode_html("\n\n", $output);
+    }
+
     return array(
-      'output'    => implode("\n\n", $output),
+      'output'    => $output,
       'storage'   => $map,
       'metadata'  => $metadata,
     );
   }
 
   public function postprocessText(array $dict) {
-    $this->setupProcessing();
-
     $this->metadata = idx($dict, 'metadata', array());
+
+    $this->storage = new PhutilRemarkupBlockStorage();
     $this->storage->setMap(idx($dict, 'storage', array()));
 
     foreach ($this->blockRules as $block_rule) {
       $block_rule->postprocess();
     }
 
-    return $this->storage->restore(idx($dict, 'output'));
+    foreach ($this->postprocessRules as $rule) {
+      $rule->didMarkupText();
+    }
+
+    return $this->restoreText(idx($dict, 'output'));
+  }
+
+  public function restoreText($text) {
+    return $this->storage->restore($text);
   }
 }

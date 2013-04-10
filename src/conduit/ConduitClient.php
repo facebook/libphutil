@@ -5,31 +5,21 @@
  */
 final class ConduitClient {
 
-  protected $protocol;
-  protected $host;
-  protected $path;
-  protected $port;
-  protected $connectionID;
-  protected $profilerCallID;
-
-  protected $sessionKey;
+  private $uri;
+  private $connectionID;
+  private $sessionKey;
   private $timeout = 300.0;
+  private $basicAuthCredentials;
 
   public function getConnectionID() {
     return $this->connectionID;
   }
 
   public function __construct($uri) {
-    $this->protocol = parse_url($uri, PHP_URL_SCHEME);
-    $this->host = parse_url($uri, PHP_URL_HOST);
-    $this->path = parse_url($uri, PHP_URL_PATH);
-    $this->port = parse_url($uri, PHP_URL_PORT);
-
-    if (!$this->host) {
+    $this->uri = new PhutilURI($uri);
+    if (!strlen($this->uri->getDomain())) {
       throw new Exception("Conduit URI '{$uri}' must include a valid host.");
     }
-
-    $this->path = trim($this->path, '/').'/';
   }
 
   public function callMethodSynchronous($method, array $params) {
@@ -37,13 +27,6 @@ final class ConduitClient {
   }
 
   public function didReceiveResponse($method, $data) {
-    if ($this->profilerCallID !== null) {
-      $profiler = PhutilServiceProfiler::getInstance();
-      $profiler->endServiceCall(
-        $this->profilerCallID,
-        array());
-    }
-
     if ($method == 'conduit.connect') {
       $this->sessionKey = idx($data, 'sessionKey');
       $this->connectionID = idx($data, 'connectionID');
@@ -82,12 +65,7 @@ final class ConduitClient {
       $params['__conduit__'] = $meta;
     }
 
-    $port = null;
-    if ($this->port) {
-      $port = ':'.$this->port;
-    }
-
-    $uri = $this->protocol.'://'.$this->host.$port.'/'.$this->path.$method;
+    $uri = id(clone $this->uri)->setPath('/api/'.$method);
 
     $data = array(
       'params'      => json_encode($params),
@@ -99,33 +77,29 @@ final class ConduitClient {
       '__conduit__' => true,
     );
 
-    // NOTE: If we're on Windows, the socket-based HTTPFuture won't work
-    // properly. In theory it may be fixable, but the easier fix is just to use
-    // the cURL-based HTTPSFuture for HTTP. We'll lose the ability to
-    // parallelize requests but things will work correctly.
-    $use_https_future = ($this->protocol == 'https') || phutil_is_windows();
-
-    if ($use_https_future) {
-      $core_future = new HTTPSFuture($uri, $data);
-    } else {
-      $core_future = new HTTPFuture($uri, $data);
-    }
+    // Always use the cURL-based HTTPSFuture, for proxy support and other
+    // protocol edge cases that HTTPFuture does not support.
+    $core_future = new HTTPSFuture($uri, $data);
 
     $core_future->setMethod('POST');
     $core_future->setTimeout($this->timeout);
-
-    $profiler = PhutilServiceProfiler::getInstance();
-    $this->profilerCallID = $profiler->beginServiceCall(
-      array(
-        'type'    => 'conduit',
-        'method'  => $method,
-      ));
+    if ($this->basicAuthCredentials !== null) {
+      $core_future->addHeader(
+        'Authorization',
+        'Basic '.$this->basicAuthCredentials);
+    }
 
     $conduit_future = new ConduitFuture($core_future);
     $conduit_future->setClient($this, $method);
+    $conduit_future->beginProfile($data);
     $conduit_future->isReady();
 
     return $conduit_future;
+  }
+
+  public function setBasicAuthCredentials($username, $password) {
+    $this->basicAuthCredentials = base64_encode($username.':'.$password);
+    return $this;
   }
 
 }

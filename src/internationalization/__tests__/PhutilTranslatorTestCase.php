@@ -33,6 +33,29 @@ final class PhutilTranslatorTestCase extends PhutilTestCase {
     $this->assertEqual('1 beer(s)', $translator->translate('%d beer(s)', 1));
   }
 
+  public function testSingleVariant() {
+    $translator = new PhutilTranslator();
+    $translator->setLanguage('en');
+
+    // In this translation, we have no alternatives for the first conversion.
+    $translator->addTranslations(
+      array(
+        'Run the command %s %d time(s).' => array(
+          array(
+            'Run the command %s once.',
+            'Run the command %s %d times.',
+          ),
+        ),
+      ));
+
+    $this->assertEqual(
+      'Run the command <tt>ls</tt> 123 times.',
+      (string)$translator->translate(
+        'Run the command %s %d time(s).',
+        hsprintf('<tt>%s</tt>', 'ls'),
+        123));
+  }
+
   public function testCzech() {
     $translator = new PhutilTranslator();
     $translator->setLanguage('cs');
@@ -109,6 +132,44 @@ final class PhutilTranslatorTestCase extends PhutilTestCase {
     $this->assertEqual('color', pht('color'));
   }
 
+  public function testFormatNumber() {
+    $translator = new PhutilTranslator();
+    $this->assertEqual('1,234', $translator->formatNumber(1234));
+    $this->assertEqual('1,234.5', $translator->formatNumber(1234.5, 1));
+    $this->assertEqual('1,234.5678', $translator->formatNumber(1234.5678, 4));
+
+    $translator->addTranslations(
+      array(
+        ',' => ' ',
+        '.' => ','
+      ));
+    $this->assertEqual('1 234', $translator->formatNumber(1234));
+    $this->assertEqual('1 234,5', $translator->formatNumber(1234.5, 1));
+    $this->assertEqual('1 234,5678', $translator->formatNumber(1234.5678, 4));
+  }
+
+  public function testNumberTranslations() {
+    $translator = new PhutilTranslator();
+    $translator->addTranslations(
+      array(
+        '%s line(s)' => array('%s line', '%s lines'),
+      ));
+
+    $this->assertEqual(
+      '1 line',
+      $translator->translate('%s line(s)', new PhutilNumber(1)));
+
+    $this->assertEqual(
+      '1,000 lines',
+      $translator->translate('%s line(s)', new PhutilNumber(1000)));
+
+    $this->assertEqual(
+      '8.5 lines',
+      $translator->translate(
+        '%s line(s)',
+        id(new PhutilNumber(8.5))->setDecimals(1)));
+  }
+
   public function testValidateTranslation() {
     $tests = array(
       'a < 2' => array(
@@ -144,6 +205,39 @@ final class PhutilTranslatorTestCase extends PhutilTestCase {
           "'{$original}' should be {$valid} with '{$translation}'.");
       }
     }
+  }
+
+  public function testHTMLTranslations() {
+    $string = '%s awoke <strong>suddenly</strong> at %s.';
+    $when = '<4 AM>';
+
+    $translator = new PhutilTranslator();
+
+    // When no components are HTML, everything is treated as a string.
+    $who = '<span>Abraham</span>';
+    $translation = $translator->translate(
+      $string,
+      $who,
+      $when);
+    $this->assertEqual(
+      true,
+      gettype($translation) == 'string');
+    $this->assertEqual(
+      '<span>Abraham</span> awoke <strong>suddenly</strong> at <4 AM>.',
+      $translation);
+
+    // When at least one component is HTML, everything is treated as HTML.
+    $who = phutil_tag('span', array(), 'Abraham');
+    $translation = $translator->translate(
+      $string,
+      $who,
+      $when);
+    $this->assertEqual(
+      true,
+      ($translation instanceof PhutilSafeHTML));
+    $this->assertEqual(
+      '<span>Abraham</span> awoke <strong>suddenly</strong> at &lt;4 AM&gt;.',
+      $translation->getHTMLContent());
   }
 
 }

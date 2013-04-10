@@ -125,6 +125,80 @@ function mpull(array $list, $method, $key_method = null) {
 
 
 /**
+ * Access a property on a list of objects. Short for "property pull", this
+ * function works just like @{function:mpull}, except that it accesses object
+ * properties instead of methods. This function simplifies a common type of
+ * mapping operation:
+ *
+ *    COUNTEREXAMPLE
+ *    $names = array();
+ *    foreach ($objects as $key => $object) {
+ *      $names[$key] = $object->name;
+ *    }
+ *
+ * You can express this more concisely with ppull():
+ *
+ *    $names = ppull($objects, 'name');
+ *
+ * ppull() takes a third argument, which allows you to do the same but for
+ * the array's keys:
+ *
+ *    COUNTEREXAMPLE
+ *    $names = array();
+ *    foreach ($objects as $object) {
+ *      $names[$object->id] = $object->name;
+ *    }
+ *
+ * This is the ppull version():
+ *
+ *    $names = ppull($objects, 'name', 'id');
+ *
+ * If you pass ##null## as the second argument, the objects will be preserved:
+ *
+ *    COUNTEREXAMPLE
+ *    $id_map = array();
+ *    foreach ($objects as $object) {
+ *      $id_map[$object->id] = $object;
+ *    }
+ *
+ * With ppull():
+ *
+ *    $id_map = ppull($objects, null, 'id');
+ *
+ * See also @{function:mpull}, which works similarly but calls object methods
+ * instead of accessing object properties.
+ *
+ * @param   list          Some list of objects.
+ * @param   string|null   Determines which **values** will appear in the result
+ *                        array. Use a string like 'name' to store the value of
+ *                        accessing the named property in each value, or
+ *                        ##null## to preserve the original objects.
+ * @param   string|null   Determines how **keys** will be assigned in the result
+ *                        array. Use a string like 'id' to use the result of
+ *                        accessing the named property as each object's key, or
+ *                        ##null## to preserve the original keys.
+ * @return  dict          A dictionary with keys and values derived according
+ *                        to whatever you passed as $property and $key_property.
+ * @group   util
+ */
+function ppull(array $list, $property, $key_property = null) {
+  $result = array();
+  foreach ($list as $key => $object) {
+    if ($key_property !== null) {
+      $key = $object->$key_property;
+    }
+    if ($property !== null) {
+      $value = $object->$property;
+    } else {
+      $value = $object;
+    }
+    $result[$key] = $value;
+  }
+  return $result;
+}
+
+
+/**
  * Choose an index from a list of arrays. Short for "index pull", this function
  * works just like @{function:mpull}, except that it operates on a list of
  * arrays and selects an index from them instead of operating on a list of
@@ -457,26 +531,67 @@ function array_select_keys(array $dict, array $keys) {
  * Throws InvalidArgumentException if it isn't true for any value.
  *
  * @param  array
- * @param  string
+ * @param  string  Name of the class or 'array' to check arrays.
  * @return array   Returns passed array.
  * @group   util
  */
 function assert_instances_of(array $arr, $class) {
+  $is_array = !strcasecmp($class, 'array');
+
   foreach ($arr as $key => $object) {
-    if (!($object instanceof $class)) {
+    if ($is_array) {
+      if (!is_array($object)) {
+        $given = gettype($object);
+        throw new InvalidArgumentException(
+          "Array item with key '{$key}' must be of type array, ".
+          "{$given} given.");
+      }
+
+    } else if (!($object instanceof $class)) {
       $given = gettype($object);
       if (is_object($object)) {
         $given = 'instance of '.get_class($object);
       }
       throw new InvalidArgumentException(
         "Array item with key '{$key}' must be an instance of {$class}, ".
-        "{$given} given."
-        );
+        "{$given} given.");
     }
   }
+
   return $arr;
 }
 
+/**
+ * Assert that passed data can be converted to string.
+ *
+ * @param  string    Assert that this data is valid.
+ * @return void
+ *
+ * @task   assert
+ */
+function assert_stringlike($parameter) {
+  switch (gettype($parameter)) {
+    case 'string':
+    case 'NULL':
+    case 'boolean':
+    case 'double':
+    case 'integer':
+      return;
+    case 'object':
+      if (method_exists($parameter, '__toString')) {
+        return;
+      }
+      break;
+    case 'array':
+    case 'resource':
+    case 'unknown type':
+    default:
+      break;
+  }
+
+  throw new InvalidArgumentException(
+    "Argument must be scalar or object which implements __toString()!");
+}
 
 /**
  * Returns the first argument which is not strictly null, or ##null## if there
@@ -672,5 +787,83 @@ function phutil_split_lines($corpus, $retain_endings = true) {
     array_pop($lines);
   }
 
+  if ($corpus instanceof PhutilSafeHTML) {
+    return array_map('phutil_safe_html', $lines);
+  }
+
   return $lines;
+}
+
+
+/**
+ * Simplifies a common use of `array_combine()`. Specifically, this:
+ *
+ *   COUNTEREXAMPLE:
+ *   if ($list) {
+ *     $result = array_combine($list, $list);
+ *   } else {
+ *     // Prior to PHP 5.4, array_combine() failed if given empty arrays.
+ *     $result = array();
+ *   }
+ *
+ * ...is equivalent to this:
+ *
+ *   $result = array_fuse($list);
+ *
+ * @param   list  List of scalars.
+ * @return  dict  Dictionary with inputs mapped to themselves.
+ * @group util
+ */
+function array_fuse(array $list) {
+  if ($list) {
+    return array_combine($list, $list);
+  }
+  return array();
+}
+
+
+/**
+ * Add an element between every two elements of some array. That is, given a
+ * list `A, B, C, D`, and some element to interleave, `x`, this function returns
+ * `A, x, B, x, C, x, D`. This works like `implode()`, but does not concatenate
+ * the list into a string. In particular:
+ *
+ *   implode('', array_interleave($x, $list));
+ *
+ * ...is equivalent to:
+ *
+ *   implode($x, $list);
+ *
+ * This function does not preserve keys.
+ *
+ * @param wild  Element to interleave.
+ * @param list  List of elements to be interleaved.
+ * @return list Original list with the new element interleaved.
+ * @group util
+ */
+function array_interleave($interleave, array $array) {
+  $result = array();
+  foreach ($array as $item) {
+    $result[] = $item;
+    $result[] = $interleave;
+  }
+  array_pop($result);
+  return $result;
+}
+
+/**
+ * @group library
+ */
+function phutil_is_windows() {
+  // We can also use PHP_OS, but that's kind of sketchy because it returns
+  // "WINNT" for Windows 7 and "Darwin" for Mac OS X. Practically, testing for
+  // DIRECTORY_SEPARATOR is more straightforward.
+  return (DIRECTORY_SEPARATOR != '/');
+}
+
+/**
+ * @group library
+ */
+function phutil_is_hiphop_runtime() {
+  return (array_key_exists('HPHP', $_ENV) && $_ENV['HPHP'] === 1);
 }

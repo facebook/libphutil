@@ -13,9 +13,6 @@
  *
  *    PhutilErrorHandler::initialize();
  *
- * This will also enable @{function:phlog}, for printing development debugging
- * messages.
- *
  * To additionally install a custom listener which can print error information
  * to some other file or console, register a listener:
  *
@@ -27,7 +24,8 @@
  *
  * Phabricator uses this class to drive the DarkConsole "Error Log" plugin.
  *
- * @task config Configuring Error Dispatch
+ * @task config   Configuring Error Dispatch
+ * @task exutil   Exception Utilities
  * @task internal Internals
  * @group error
  */
@@ -74,6 +72,45 @@ final class PhutilErrorHandler {
   }
 
 
+/* -(  Exception Utilities  )------------------------------------------------ */
+
+
+  /**
+   * Gets the previous exception of a nested exception. Prior to PHP 5.3 you
+   * can use @{class:PhutilProxyException} to nest exceptions; after PHP 5.3
+   * all exceptions are nestable.
+   *
+   * @param   Exception       Exception to unnest.
+   * @return  Exception|null  Previous exception, if one exists.
+   * @task    exutil
+   */
+  public static function getPreviousException(Exception $ex) {
+    if (method_exists($ex, 'getPrevious')) {
+      return $ex->getPrevious();
+    }
+    if (method_exists($ex, 'getPreviousException')) {
+      return $ex->getPreviousException();
+    }
+    return null;
+  }
+
+
+  /**
+   * Find the most deeply nested exception from a possibly-nested exception.
+   *
+   * @param   Exception     A possibly-nested exception.
+   * @return  Exception     Deepest exception in the nest.
+   * @task    exutil
+   */
+  public static function getRootException(Exception $ex) {
+    $root = $ex;
+    while (self::getPreviousException($root)) {
+      $root = self::getPreviousException($root);
+    }
+    return $root;
+  }
+
+
 /* -(  Internals  )---------------------------------------------------------- */
 
 
@@ -113,6 +150,15 @@ final class PhutilErrorHandler {
    */
   public static function handleError($num, $str, $file, $line, $ctx) {
 
+    if ((error_reporting() & $num) == 0) {
+      // Respect the use of "@" to silence warnings: if this error was
+      // emitted from a context where "@" was in effect, the
+      // value returned by error_reporting() will be 0. This is the
+      // recommended way to check for this, see set_error_handler() docs
+      // on php.net.
+      return false;
+    }
+
     // Convert typehint failures into exceptions.
     if (preg_match('/^Argument (\d+) passed to (\S+) must be/', $str)) {
       throw new InvalidArgumentException($str);
@@ -130,6 +176,12 @@ final class PhutilErrorHandler {
 
     // Convert uses of undefined properties into exceptions.
     if (preg_match('/^Undefined property: /', $str)) {
+      throw new RuntimeException($str);
+    }
+
+    // Convert undefined constants into exceptions. Usually this means there
+    // is a missing `$` and the program is horribly broken.
+    if (preg_match('/^Use of undefined constant /', $str)) {
       throw new RuntimeException($str);
     }
 
@@ -163,7 +215,7 @@ final class PhutilErrorHandler {
       array(
         'file'  => $ex->getFile(),
         'line'  => $ex->getLine(),
-        'trace' => $ex->getTrace(),
+        'trace' => self::getRootException($ex)->getTrace(),
         'catch_trace' => debug_backtrace(),
       ));
 
@@ -174,6 +226,7 @@ final class PhutilErrorHandler {
     exit(255);
   }
 
+
   /**
    * Output a stacktrace to the PHP error log.
    *
@@ -182,6 +235,22 @@ final class PhutilErrorHandler {
    * @task internal
    */
   public static function outputStacktrace($trace) {
+    $lines = explode("\n", self::formatStacktrace($trace));
+    foreach ($lines as $line) {
+      error_log($line);
+    }
+  }
+
+
+  /**
+   * Format a stacktrace for output.
+   *
+   * @param trace A stacktrace, e.g. from debug_backtrace();
+   * @return string Human-readable trace.
+   * @task internal
+   */
+  public static function formatStacktrace($trace) {
+    $result = array();
     foreach ($trace as $key => $entry) {
       $line = '  #'.$key.' ';
       if (isset($entry['class'])) {
@@ -200,9 +269,12 @@ final class PhutilErrorHandler {
       if (isset($entry['file'])) {
         $line .= ' called at ['.$entry['file'].':'.$entry['line'].']';
       }
-      error_log($line);
+
+      $result[] = $line;
     }
+    return implode("\n", $result);
   }
+
 
   /**
    * All different types of error messages come here before they are
@@ -216,18 +288,10 @@ final class PhutilErrorHandler {
    * @task internal
    */
   public static function dispatchErrorMessage($event, $value, $metadata) {
-    $timestamp = strftime("%F %T");
+    $timestamp = strftime('%Y-%m-%d %H:%M:%S');
 
     switch ($event) {
       case PhutilErrorHandler::ERROR:
-        if (error_reporting() === 0) {
-          // Respect the use of "@" to silence warnings: if this error was
-          // emitted from a context where "@" was in effect, the
-          // value returned by error_reporting() will be 0. This is the
-          // recommended way to check for this, see set_error_handler() docs
-          // on php.net.
-          break;
-        }
         $default_message = sprintf(
           '[%s] ERROR %d: %s at [%s:%d]',
           $timestamp,
@@ -241,16 +305,27 @@ final class PhutilErrorHandler {
         self::outputStacktrace($metadata['trace']);
         break;
       case PhutilErrorHandler::EXCEPTION:
+        $messages = array();
+        $current = $value;
+        do {
+          $messages[] = '('.get_class($current).') '.$current->getMessage();
+        } while ($current = self::getPreviousException($current));
+        $messages = implode(' {>} ', $messages);
+
+        if (strlen($messages) > 4096) {
+          $messages = substr($messages, 0, 4096).'...';
+        }
+
         $default_message = sprintf(
           '[%s] EXCEPTION: %s at [%s:%d]',
           $timestamp,
-          '('.get_class($value).') '.$value->getMessage(),
-          $value->getFile(),
-          $value->getLine());
+          $messages,
+          self::getRootException($value)->getFile(),
+          self::getRootException($value)->getLine());
 
         $metadata['default_message'] = $default_message;
         error_log($default_message);
-        self::outputStacktrace($value->getTrace());
+        self::outputStacktrace(self::getRootException($value)->getTrace());
         break;
       case PhutilErrorHandler::PHLOG:
         $default_message = sprintf(
@@ -291,4 +366,5 @@ final class PhutilErrorHandler {
       $handling_error = false;
     }
   }
+
 }

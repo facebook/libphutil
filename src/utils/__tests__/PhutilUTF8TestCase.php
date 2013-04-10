@@ -7,24 +7,24 @@
  */
 final class PhutilUTF8TestCase extends PhutilTestCase {
 
-  public function testUTF8ize_ASCII_ignored() {
+  public function testUTF8izeASCIIIgnored() {
     $input = "this\x01 is a \x7f test string";
     $this->assertEqual($input, phutil_utf8ize($input));
   }
 
-  public function testUTF8ize_UTF8_ignored() {
+  public function testUTF8izeUTF8Ignored() {
     $input = "\xc3\x9c \xc3\xbc \xe6\x9d\xb1!";
     $this->assertEqual($input, phutil_utf8ize($input));
   }
 
-  public function testUTF8ize_LongString_nosegfault() {
+  public function testUTF8izeLongStringNosegfault() {
     // For some reason my laptop is segfaulting on long inputs inside
     // preg_match(). Forestall this craziness in the common case, at least.
     phutil_utf8ize(str_repeat('x', 1024 * 1024));
     $this->assertEqual(true, true);
   }
 
-  public function testUTF8ize_invalidUTF8_fixed() {
+  public function testUTF8izeInvalidUTF8Fixed() {
     $input =
       "\xc3 this has \xe6\x9d some invalid utf8 \xe6";
     $expect =
@@ -34,7 +34,7 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
     $this->assertEqual($expect, $result);
   }
 
-  public function testUTF8ize_owl_isCuteAndFerocious() {
+  public function testUTF8izeOwlIsCuteAndFerocious() {
     // This was once a ferocious owl when we used to use "?" as the replacement
     // character instead of U+FFFD, but now he is sort of not as cute or
     // ferocious.
@@ -213,6 +213,64 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
     }
   }
 
+  public function testUTF8NonHTMLWrap() {
+    $inputs = array(
+      array(
+        'aaaaaaa',
+        3,
+        array(
+          'aaa',
+          'aaa',
+          'a',
+        )),
+      array(
+        'abracadabra!',
+        4,
+        array(
+          'abra',
+          'cada',
+          'bra!',
+        )),
+      array(
+        '',
+        10,
+        array(
+        )),
+      array(
+        'a',
+        20,
+        array(
+          'a',
+        )),
+      array(
+        "aa\xe6\x9d\xb1aaaa",
+        3,
+        array(
+          "aa\xe6\x9d\xb1",
+          'aaa',
+          'a',
+        )),
+      array(
+        "mmm\nmmm\nmmmm",
+        3,
+        array(
+          'mmm',
+          'mmm',
+          'mmm',
+          'm',
+        )),
+    );
+
+    foreach ($inputs as $input) {
+      list($string, $width, $expect) = $input;
+      $this->assertEqual(
+        $expect,
+        phutil_utf8_hard_wrap($string, $width),
+        "Wrapping of '".$string."'");
+    }
+  }
+
+
   public function testUTF8ConvertParams() {
     $caught = null;
     try {
@@ -230,6 +288,7 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
     }
     $this->assertEqual(true, (bool)$caught, 'Requires target encoding.');
   }
+
 
   public function testUTF8Convert() {
     if (!function_exists('mb_convert_encoding')) {
@@ -253,5 +312,61 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
 
     $this->assertEqual(true, (bool)$caught, 'Conversion with bogus encoding.');
   }
+
+
+  public function testUTF8ucwords() {
+    $tests = array(
+      '' => '',
+      'x' => 'X',
+      'X' => 'X',
+      'five short graybles' => 'Five Short Graybles',
+      'xXxSNiPeRKiLLeRxXx' => 'XXxSNiPeRKiLLeRxXx',
+    );
+
+    foreach ($tests as $input => $expect) {
+      $this->assertEqual(
+        $expect,
+        phutil_utf8_ucwords($input),
+        'phutil_utf8_ucwords("'.$input.'")');
+    }
+  }
+
+
+  public function testUTF8strtolower() {
+    $tests = array(
+      '' => '',
+      'a' => 'a',
+      'A' => 'a',
+      '!' => '!',
+      'OMG!~ LOLolol ROFLwaffle11~' => 'omg!~ lololol roflwaffle11~',
+      "\xE2\x98\x83" => "\xE2\x98\x83",
+    );
+
+    foreach ($tests as $input => $expect) {
+      $this->assertEqual(
+        $expect,
+        phutil_utf8_strtolower($input),
+        'phutil_utf8_strtolower("'.$input.'")');
+    }
+  }
+
+  public function testUTF8strtoupper() {
+    $tests = array(
+      '' => '',
+      'a' => 'A',
+      'A' => 'A',
+      '!' => '!',
+      'Cats have 9 lives.' => 'CATS HAVE 9 LIVES.',
+      "\xE2\x98\x83" => "\xE2\x98\x83",
+    );
+
+    foreach ($tests as $input => $expect) {
+      $this->assertEqual(
+        $expect,
+        phutil_utf8_strtoupper($input),
+        'phutil_utf8_strtoupper("'.$input.'")');
+    }
+  }
+
 
 }

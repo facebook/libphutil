@@ -18,7 +18,7 @@ final class PhutilRemarkupEngineRemarkupListBlockRule
   }
 
   public function shouldMergeBlocks() {
-    return true;
+    return false;
   }
 
   public function markupText($text) {
@@ -141,8 +141,17 @@ final class PhutilRemarkupEngineRemarkupListBlockRule
         $style = '-';
       }
 
+      // If we don't match the block pattern (for example, because the user
+      // has typed only " " or " -"), treat the line as containing no text.
+      // This prevents newly added items from rendering with a bullet and
+      // the text "-", e.g.
+      $text = preg_replace($this->getBlockPattern(), '', $item);
+      if ($text == $item) {
+        $text = '';
+      }
+
       $items[$key] = array(
-        'text'  => preg_replace($this->getBlockPattern(), '', $item),
+        'text'  => $text,
         'depth' => $depth,
         'style' => $style,
       );
@@ -217,7 +226,14 @@ final class PhutilRemarkupEngineRemarkupListBlockRule
 
     $out = $this->renderTree($tree);
 
-    return implode('', $out);
+    if ($this->getEngine()->isTextMode()) {
+      $out = implode('', $out);
+      $out = rtrim($out, "\n");
+      $out = preg_replace('/ +$/m', '', $out);
+      return $out;
+    }
+
+    return phutil_implode_html('', $out);
   }
 
   /**
@@ -310,41 +326,61 @@ final class PhutilRemarkupEngineRemarkupListBlockRule
   /**
    * See additional notes in markupText().
    */
-  private function renderTree(array $tree) {
+  private function renderTree(array $tree, $level = 0) {
     $style = idx(head($tree), 'style');
 
     $out = array();
-    switch ($style) {
-      case '#':
-        $out[] = "<ol>\n";
-        break;
-      case '-':
-        $out[] = "<ul>\n";
-        break;
+
+    if (!$this->getEngine()->isTextMode()) {
+      switch ($style) {
+        case '#':
+          $out[] = hsprintf("<ol>\n");
+          break;
+        case '-':
+          $out[] = hsprintf("<ul>\n");
+          break;
+      }
     }
 
+    $number = 1;
     foreach ($tree as $item) {
-      if ($item['text'] === null) {
-        $out[] = '<li class="phantom-item">';
+      if ($this->getEngine()->isTextMode()) {
+        $out[] = str_repeat(' ', 2 * $level);
+        switch ($style) {
+          case '#':
+            $out[] = $number.'. ';
+            $number++;
+            break;
+          case '-':
+            $out[] = '- ';
+            break;
+        }
+        $out[] = $this->applyRules($item['text'])."\n";
+      } else if ($item['text'] === null) {
+        $out[] = hsprintf('<li class="phantom-item">');
       } else {
-        $out[] = '<li>';
+        $out[] = hsprintf('<li>');
         $out[] = $this->applyRules($item['text']);
       }
       if ($item['items']) {
-        foreach ($this->renderTree($item['items']) as $i) {
+        foreach ($this->renderTree($item['items'], $level + 1) as $i) {
           $out[] = $i;
         }
       }
-      $out[] = "</li>\n";
+      if (!$this->getEngine()->isTextMode()) {
+        $out[] = hsprintf("</li>\n");
+      }
     }
 
-    switch ($style) {
-      case '#':
-        $out[] = '</ol>';
-        break;
-      case '-':
-        $out[] = '</ul>';
-        break;
+    if (!$this->getEngine()->isTextMode()) {
+      switch ($style) {
+        case '#':
+          $out[] = hsprintf('</ol>');
+          break;
+        case '-':
+          $out[] = hsprintf('</ul>');
+          break;
+      }
     }
 
     return $out;

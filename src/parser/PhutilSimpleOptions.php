@@ -6,13 +6,16 @@
  *   lang=text
  *   lang=php, name=example.php, lines=30, counterexample
  *
- * @task parse Parsing Simple Options
- * @task unparse Unparsing Simple Options
+ * @task parse    Parsing Simple Options
+ * @task unparse  Unparsing Simple Options
+ * @task config   Parser Configuration
  * @task internal Internals
  *
  * @group util
  */
 final class PhutilSimpleOptions {
+
+  private $caseSensitive;
 
 
 /* -(  Parsing Simple Options  )--------------------------------------------- */
@@ -34,29 +37,80 @@ final class PhutilSimpleOptions {
    * @return  dict    Parsed dictionary.
    * @task parse
    */
-  public static function parse($input) {
+  public function parse($input) {
     $result = array();
 
-    $vars = explode(',', $input);
-    foreach ($vars as $var) {
-      if (strpos($var, '=') !== false) {
-        list($key, $value) = explode('=', $var, 2);
-        $value = trim($value);
-      } else {
-        list($key, $value) = array($var, true);
+    $lexer = new PhutilSimpleOptionsLexer();
+    $tokens = $lexer->getNiceTokens($input);
+
+    $state = 'key';
+    $pairs = array();
+    foreach ($tokens as $token) {
+      list($type, $value) = $token;
+      switch ($state) {
+        case 'key':
+          if ($type != 'word') {
+            return array();
+          }
+          if (!strlen($value)) {
+            return array();
+          }
+          $key = $this->normalizeKey($value);
+          $state = '=';
+          break;
+        case '=':
+          if ($type == '=') {
+            $state = 'value';
+            break;
+          }
+          if ($type == ',') {
+            $pairs[] = array($key, true);
+            $state = 'key';
+            break;
+          }
+          return array();
+        case 'value':
+          if ($type == ',') {
+            $pairs[] = array($key, null);
+            $state = 'key';
+            break;
+          }
+          if ($type != 'word') {
+            return array();
+          }
+          $pairs[] = array($key, $value);
+          $state = ',';
+          break;
+        case ',':
+          if ($type == 'word') {
+            $pair = array_pop($pairs);
+            $pair[1] .= $value;
+            $pairs[] = $pair;
+            break;
+          }
+          if ($type != ',') {
+            return array();
+          }
+          $state = 'key';
+          break;
       }
-      $key = trim($key);
-      $key = strtolower($key);
-      if (!self::isValidKey($key)) {
-        // If there are bad keys, just bail, so we don't get silly results for
-        // parsing inputs like "SELECT id, name, size FROM table".
-        return array();
-      }
-      if (!strlen($value)) {
+    }
+
+    if ($state == '=') {
+      $pairs[] = array($key, true);
+    }
+    if ($state == 'value') {
+      $pairs[] = array($key, null);
+    }
+
+    $result = array();
+    foreach ($pairs as $pair) {
+      list($key, $value) = $pair;
+      if ($value === null) {
         unset($result[$key]);
-        continue;
+      } else {
+        $result[$key] = $value;
       }
-      $result[$key] = $value;
     }
 
     return $result;
@@ -79,33 +133,65 @@ final class PhutilSimpleOptions {
    *    legs=4, eyes=2
    *
    * @param   dict    Input dictionary.
+   * @param   string  Additional characters to escape.
    * @return  string  Unparsed option list.
    */
-  public static function unparse(array $options) {
+  public function unparse(array $options, $escape = '') {
     $result = array();
     foreach ($options as $name => $value) {
-      if (!self::isValidKey($name)) {
-        throw new Exception(
-          "SimpleOptions: keys must contain only lowercase letters.");
-      }
+      $name = $this->normalizeKey($name);
       if (!strlen($value)) {
         continue;
       }
       if ($value === true) {
-        $result[] = $name;
+        $result[] = $this->quoteString($name, $escape);
       } else {
-        $result[] = $name.'='.$value;
+        $qn = $this->quoteString($name, $escape);
+        $qv = $this->quoteString($value, $escape);
+        $result[] = $qn.'='.$qv;
       }
     }
     return implode(', ', $result);
   }
 
 
+/* -(  Parser Configuration  )----------------------------------------------- */
+
+
+  /**
+   * Configure case sensitivity of the parser. By default, the parser is
+   * case insensitive, so "legs=4" has the same meaning as "LEGS=4". If you
+   * set it to be case sensitive, the keys have different meanings.
+   *
+   * @param bool  True to make the parser case sensitive, false (default) to
+   *              make it case-insensitive.
+   * @return this
+   * @task config
+   */
+  public function setCaseSensitive($case_sensitive) {
+    $this->caseSensitive = $case_sensitive;
+    return $this;
+  }
+
+
 /* -(  Internals  )---------------------------------------------------------- */
 
 
-  private static function isValidKey($key) {
-    return (bool)preg_match('/^[a-z]+$/', $key);
+  private function normalizeKey($key) {
+    if (!strlen($key)) {
+      throw new Exception("Empty key is invalid!");
+    }
+    if (!$this->caseSensitive) {
+      $key = strtolower($key);
+    }
+    return $key;
+  }
+
+  private function quoteString($string, $escape) {
+    if (preg_match('/[^a-zA-Z0-9]/', $string)) {
+      $string = '"'.addcslashes($string, '\\\'"'.$escape).'"';
+    }
+    return $string;
   }
 
 }

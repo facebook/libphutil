@@ -67,13 +67,56 @@ final class PhutilTranslator {
       $translation = $this->chooseVariant($translation, next($args));
     }
     array_shift($args);
-    return vsprintf($translation, $args);
+
+    // Check if any arguments are PhutilSafeHTML. If they are, we will apply
+    // any escaping necessary and output HTML.
+    $is_html = false;
+    foreach ($args as $arg) {
+      if ($arg instanceof PhutilSafeHTML) {
+        $is_html = true;
+        break;
+      }
+    }
+
+    if ($is_html) {
+      foreach ($args as $k => $arg) {
+        $args[$k] = (string)phutil_escape_html($arg);
+      }
+    }
+
+    foreach ($args as $k => $arg) {
+      if ($arg instanceof PhutilNumber) {
+        $args[$k] = $this->formatNumber($arg->getNumber(), $arg->getDecimals());
+      }
+    }
+
+    $result = vsprintf($translation, $args);
+
+    if ($this->language == 'en-ac') {
+      $result = strtoupper($result);
+    }
+
+    if ($is_html) {
+      $result = phutil_safe_html($result);
+    }
+
+    return $result;
   }
 
   private function chooseVariant(array $translations, $variant) {
+    if (count($translations) == 1) {
+      // If we only have one variant, we can select it directly.
+      return reset($translations);
+    }
+
+    if ($variant instanceof PhutilNumber) {
+      $variant = $variant->getNumber();
+    }
+
     switch ($this->language) {
 
       case 'en':
+      case 'en-ac':
         list($singular, $plural) = $translations;
         if ($variant == 1) {
           return $singular;
@@ -130,6 +173,23 @@ final class PhutilTranslator {
       $parts[] = $part;
     }
     return implode('', $parts);
+  }
+
+  /**
+   * Format number with grouped thousands and optional decimal part. Requires
+   * translations of '.' (decimal point) and ',' (thousands separator). Both
+   * these translations must be 1 byte long.
+   *
+   * @param float
+   * @param int
+   * @return string
+   */
+  public function formatNumber($number, $decimals = 0) {
+    return number_format(
+      $number,
+      $decimals,
+      $this->translate('.'),
+      $this->translate(','));
   }
 
   public function validateTranslation($original, $translation) {
