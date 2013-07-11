@@ -34,16 +34,6 @@ final class AphrontMySQLiDatabaseConnection
     $user = $this->getConfiguration('user');
     $host = $this->getConfiguration('host');
     $port = $this->getConfiguration('port');
-
-    // if there is a port in the host, pull it out and set it to the port variable
-    if (strpos($host, ':') !== false) {
-      $hostPieces = explode(':', $host);
-      $host = $hostPieces[0];
-      if (is_numeric($host[1])) {
-        $port = $hostPieces[1];
-      }
-    }
-
     $database = $this->getConfiguration('database');
 
     $pass = $this->getConfiguration('pass');

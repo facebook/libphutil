@@ -39,7 +39,7 @@ final class AphrontMySQLDatabaseConnection
 
     // if there isn't a port in the host, and it isn't a socket address (starts with /) 
     // and there is a port configuration, append the port to the host name
-    if (strpos($host, ':') === false && substr($host, 0, 1) != '/' && !empty($port) ) {
+    if (!empty($port)) {
       $host .= ':'.$port;
     }
 
