@@ -217,8 +217,12 @@ final class PhutilAuthAdapterLDAP extends PhutilAuthAdapter {
     }
 
     $this->bindLDAP($conn, $distinguished_name, $login_pass);
-
-    $result = $this->searchLDAPForUser($this->searchAttribute, $login_user);
+    try {
+    	$result = $this->searchLDAPForUser($this->searchAttribute, $login_user);
+    }
+    catch (Exception $e){
+    	$result = null;
+    }
     if (!$result) {
       // This is unusual (since the bind succeeded) but we've seen it at least
       // once in the wild, where the anonymous user is allowed to search but
