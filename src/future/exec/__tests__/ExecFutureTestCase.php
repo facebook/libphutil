@@ -79,8 +79,8 @@ final class ExecFutureTestCase extends PhutilTestCase {
     $future = new ExecFuture('sleep 32000');
     list($err) = $future->setTimeout(0.01)->resolve();
 
-    $this->assertEqual(true, $err > 0);
-    $this->assertEqual(true, $future->getWasKilledByTimeout());
+    $this->assertTrue($err > 0);
+    $this->assertTrue($future->getWasKilledByTimeout());
   }
 
   public function testMultipleTimeoutsTestShouldRunLessThan1Sec() {
@@ -92,8 +92,8 @@ final class ExecFutureTestCase extends PhutilTestCase {
     foreach (Futures($futures) as $future) {
       list ($err) = $future->resolve();
 
-      $this->assertEqual(true, $err > 0);
-      $this->assertEqual(true, $future->getWasKilledByTimeout());
+      $this->assertTrue($err > 0);
+      $this->assertTrue($future->getWasKilledByTimeout());
     }
   }
 
@@ -106,7 +106,59 @@ final class ExecFutureTestCase extends PhutilTestCase {
 
     // If ExecFuture::__destruct() hangs until the child closes, we won't make
     // it here in time.
-    $this->assertEqual(true, ($end - $start) < 5);
+    $this->assertTrue(($end - $start) < 5);
+  }
+
+  public function testMultipleResolves() {
+    // It should be safe to call resolve(), resolvex(), resolveKill(), etc.,
+    // as many times as you want on the same process.
+
+    $future = new ExecFuture('echo quack');
+    $future->resolve();
+    $future->resolvex();
+    list($err) = $future->resolveKill();
+
+    $this->assertEqual(0, $err);
+  }
+
+  public function testReadBuffering() {
+    $str_len_8 = 'abcdefgh';
+    $str_len_4 = 'abcd';
+
+    // This is a write/read with no read buffer.
+    $future = new ExecFuture('cat');
+    $future->write($str_len_8);
+
+    do {
+      $future->isReady();
+      list($read) = $future->read();
+      if (strlen($read)) {
+        break;
+      }
+    } while (true);
+
+    // We expect to get the entire string back in the read.
+    $this->assertEqual($str_len_8, $read);
+    $future->resolve();
+
+
+    // This is a write/read with a read buffer.
+    $future = new ExecFuture('cat');
+    $future->write($str_len_8);
+
+    // Set the read buffer size.
+    $future->setReadBufferSize(4);
+    do {
+      $future->isReady();
+      list($read) = $future->read();
+      if (strlen($read)) {
+        break;
+      }
+    } while (true);
+
+    // We expect to get the entire string back in the read.
+    $this->assertEqual($str_len_4, $read);
+    $future->resolve();
   }
 
 }

@@ -39,16 +39,12 @@ final class XHPASTNode extends AASTNode {
         $value = $this->getSemanticString();
         if (preg_match('/^0x/i', $value)) {
           // Hex
-          return (int)base_convert(substr($value, 2), 16, 10);
+          $value = base_convert(substr($value, 2), 16, 10);
         } else if (preg_match('/^0\d+$/i', $value)) {
           // Octal
-          return (int)base_convert(substr($value, 1),  8, 10);
-        } else if (preg_match('/^\d+$/', $value)) {
-          return (int)$value;
-        } else {
-          return (double)$value;
+          $value = base_convert(substr($value, 1),  8, 10);
         }
-        break;
+        return +$value;
       case 'n_SYMBOL_NAME':
         $value = $this->getSemanticString();
         if ($value == 'INF') {
@@ -92,28 +88,28 @@ final class XHPASTNode extends AASTNode {
           }
         }
         return $result;
+      case 'n_CONCATENATION_LIST':
+        $result = '';
+        foreach ($this->getChildren() as $child) {
+          if ($child->getTypeName() == 'n_OPERATOR') {
+            continue;
+          }
+          $result .= $child->evalStatic();
+        }
+        return $result;
       default:
-        throw new Exception("Unexpected node.");
+        throw new Exception(
+          pht(
+            'Unexpected node during static evaluation, of type: %s',
+            $this->getTypeName()));
     }
   }
 
   public function isConstantString() {
-    $value = $this->getConcreteString();
-
     switch ($this->getTypeName()) {
       case 'n_HEREDOC':
-        if ($value[3] == "'") { // Nowdoc: <<<'EOT'
-          return true;
-        }
-        $value = preg_replace('/^.+\n|\n.*$/', '', $value);
-        break;
-
       case 'n_STRING_SCALAR':
-        if ($value[0] == "'") {
-          return true;
-        }
-        $value = substr($value, 1, -1);
-        break;
+        return !$this->getStringVariables();
 
       case 'n_CONCATENATION_LIST':
         foreach ($this->getChildren() as $child) {
@@ -129,8 +125,33 @@ final class XHPASTNode extends AASTNode {
       default:
         return false;
     }
+  }
 
-    return preg_match('/^((?>[^$\\\\]*)|\\\\.)*$/s', $value);
+  public function getStringVariables() {
+    $value = $this->getConcreteString();
+
+    switch ($this->getTypeName()) {
+      case 'n_HEREDOC':
+        if (preg_match("/^<<<\s*'/", $value)) { // Nowdoc: <<<'EOT'
+          return array();
+        }
+        break;
+
+      case 'n_STRING_SCALAR':
+        if ($value[0] == "'") {
+          return array();
+        }
+        break;
+
+      default:
+        throw new Exception('Unexpected type '.$this->getTypeName().'.');
+    }
+
+    // We extract just the variable names and ignore properties and array keys.
+    $re = '/\\\\.|(\$|\{\$|\${)([a-z_\x7F-\xFF][a-z0-9_\x7F-\xFF]*)/i';
+    $matches = null;
+    preg_match_all($re, $value, $matches, PREG_OFFSET_CAPTURE);
+    return ipull(array_filter($matches[2]), 0, 1);
   }
 
   public function getStringLiteralValue() {
@@ -140,7 +161,7 @@ final class XHPASTNode extends AASTNode {
 
     $value = $this->getSemanticString();
     $type  = $value[0];
-    $value = substr($value, 1, -1);
+    $value = preg_replace('/^b?[\'"]|[\'"]$/i', '', $value);
     $esc   = false;
     $len   = strlen($value);
     $out   = '';

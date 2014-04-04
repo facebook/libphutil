@@ -40,9 +40,11 @@ final class PhagePHPAgentBootloader extends PhageAgentBootloader {
     if (!$this->bootSequence) {
       $files = array(
         'utils/utils.php',
+        'object/Phobject.php',
+        'utils/PhutilRope.php',
         'xsprintf/xsprintf.php',
         'xsprintf/csprintf.php',
-        'serviceprofiler/PhutilServiceProfiler.php',
+        'xsprintf/PhutilCommandString.php',
         'future/Future.php',
         'future/FutureIterator.php',
         'future/exec/ExecFuture.php',

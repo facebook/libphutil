@@ -48,6 +48,88 @@ function phutil_utf8ize($string) {
 
 
 /**
+ * Determine if a string is valid UTF-8, with only basic multilingual plane
+ * characters. This is particularly important because MySQL's `utf8` column
+ * types silently truncate strings which contain characters outside of this
+ * set.
+ *
+ * @param string  String to test for being valid UTF-8 with only characters in
+ *                the basic multilingual plane.
+ * @return bool   True if the string is valid UTF-8 with only BMP characters.
+ */
+function phutil_is_utf8_with_only_bmp_characters($string) {
+
+  // NOTE: By default, PCRE segfaults on patterns like the one we would need
+  // to use here at very small input sizes, at least on some systems (like
+  // OS X). This is apparently because the internal implementation is recursive
+  // and it blows the stack. See <https://bugs.php.net/bug.php?id=45735> for
+  // some discussion. Since the input limit is extremely low (less than 50KB on
+  // my system), do this check very very slowly in PHP instead.
+
+  $len = strlen($string);
+  for ($ii = 0; $ii < $len; $ii++) {
+    $chr = ord($string[$ii]);
+    if ($chr >= 0x01 && $chr <= 0x7F) {
+      continue;
+    } else if ($chr >= 0xC2 && $chr <= 0xDF) {
+      ++$ii;
+      if ($ii >= $len) {
+        return false;
+      }
+      $chr = ord($string[$ii]);
+      if ($chr >= 0x80 && $chr <= 0xBF) {
+        continue;
+      }
+      return false;
+    } else if ($chr > 0xE0 && $chr <= 0xEF) {
+      ++$ii;
+      if ($ii >= $len) {
+        return false;
+      }
+      $chr = ord($string[$ii]);
+      if ($chr >= 0x80 && $chr <= 0xBF) {
+        ++$ii;
+        if ($ii >= $len) {
+          return false;
+        }
+        $chr = ord($string[$ii]);
+        if ($chr >= 0x80 && $chr <= 0xBF) {
+          continue;
+        }
+      }
+      return false;
+    } else if ($chr == 0xE0) {
+      ++$ii;
+      if ($ii >= $len) {
+        return false;
+      }
+      $chr = ord($string[$ii]);
+
+      // NOTE: This range starts at 0xA0, not 0x80. The values 0x80-0xA0 are
+      // "valid", but not minimal representations, and MySQL rejects them. We're
+      // special casing this part of the range.
+
+      if ($chr >= 0xA0 && $chr <= 0xBF) {
+        ++$ii;
+        if ($ii >= $len) {
+          return false;
+        }
+        $chr = ord($string[$ii]);
+        if ($chr >= 0x80 && $chr <= 0xBF) {
+          continue;
+        }
+      }
+      return false;
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+
+/**
  * Determine if a string is valid UTF-8.
  *
  * @param string  Some string which may or may not be valid UTF-8.
@@ -61,6 +143,9 @@ function phutil_is_utf8($string) {
     return mb_check_encoding($string, 'UTF-8');
   }
 
+  // NOTE: This incorrectly accepts characters like \xE0\x80\x80, but should
+  // not. The MB version works correctly.
+
   $regex =
     "/^(".
       "[\x01-\x7F]+".
@@ -68,7 +153,7 @@ function phutil_is_utf8($string) {
     "|([\xE0-\xEF][\x80-\xBF][\x80-\xBF])".
     "|([\xF0-\xF4][\x80-\xBF][\x80-\xBF][\x80-\xBF]))*\$/";
 
-  return preg_match($regex, $string);
+  return (bool)preg_match($regex, $string);
 }
 
 
@@ -238,8 +323,7 @@ function phutil_utf8v_codepoints($string) {
  * function attempts to truncate strings at word boundaries.
  *
  * NOTE: This function makes a best effort to apply some reasonable rules but
- * will not work well for the full range of unicode languages. For instance,
- * no effort is made to deal with combining characters.
+ * will not work well for the full range of unicode languages.
  *
  * @param   string  UTF-8 string to shorten.
  * @param   int     Maximum length of the result.
@@ -250,16 +334,13 @@ function phutil_utf8v_codepoints($string) {
  * @group utf8
  */
 function phutil_utf8_shorten($string, $length, $terminal = "\xE2\x80\xA6") {
-  $terminal_len = phutil_utf8_strlen($terminal);
-  if ($terminal_len >= $length) {
-    // If you provide a terminal we still enforce that the result (including
-    // the terminal) is no longer than $length, but we can't do that if the
-    // terminal is too long.
-    throw new Exception(
-      "String terminal length must be less than string length!");
+  // If the string has fewer bytes than the minimum length, we can return
+  // it unmodified without doing any heavy lifting.
+  if (strlen($string) <= $length) {
+    return $string;
   }
 
-  $string_v = phutil_utf8v($string);
+  $string_v = phutil_utf8v_combined($string);
   $string_len = count($string_v);
 
   if ($string_len <= $length) {
@@ -299,9 +380,12 @@ function phutil_utf8_shorten($string, $length, $terminal = "\xE2\x80\xA6") {
   $word_boundary = null;
   $stop_boundary = null;
 
+  $terminal_len = phutil_utf8_strlen($terminal);
+
   // If we do a word break with a terminal, we have to look beyond at least the
-  // number of characters in the terminal.
-  $terminal_area = $length - $terminal_len;
+  // number of characters in the terminal. If the terminal is longer than the
+  // required length, we'll skip this whole block and return it on its own
+  $terminal_area = $length - min($length, $terminal_len);
   for ($ii = $length; $ii >= 0; $ii--) {
     $c = $string_v[$ii];
 
@@ -327,7 +411,7 @@ function phutil_utf8_shorten($string, $length, $terminal = "\xE2\x80\xA6") {
   // If we didn't find any boundary characters or we found ONLY boundary
   // characters, just break at the maximum character length.
   if ($word_boundary === null || $word_boundary === 0) {
-    $word_boundary = $length - $terminal_len;
+    $word_boundary = $terminal_area;
   }
 
   $string_part = array_slice($string_v, 0, $word_boundary);
@@ -618,4 +702,73 @@ function phutil_utf8_strtr($str, array $map) {
   }
 
   return $result;
+}
+
+/**
+ * Determine if a given unicode character is a combining character or not.
+ *
+ * @param   string              A single unicode character.
+ * @return  boolean             True or false.
+ *
+ * @group utf8
+ */
+
+function phutil_utf8_is_combining_character($character) {
+  $components = phutil_utf8v_codepoints($character);
+
+  // Combining Diacritical Marks (0300 - 036F).
+  // Combining Diacritical Marks Supplement (1DC0 - 1DFF).
+  // Combining Diacritical Marks for Symbols (20D0 - 20FF).
+  // Combining Half Marks (FE20 - FE2F).
+
+  foreach ($components as $codepoint) {
+    if ($codepoint >= 0x0300 && $codepoint <= 0x036F ||
+         $codepoint >= 0x1DC0 && $codepoint <= 0x1DFF ||
+         $codepoint >= 0x20D0 && $codepoint <= 0x20FF ||
+         $codepoint >= 0xFE20 && $codepoint <= 0xFE2F) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Split a UTF-8 string into an array of characters. Combining characters
+ * are not split.
+ *
+ * @param string A valid utf-8 string.
+ * @return list  A list of characters in the string.
+ *
+ * @group utf8
+ */
+
+function phutil_utf8v_combined($string) {
+  $components = phutil_utf8v($string);
+  $array_length = count($components);
+
+  // If the first character in the string is a combining character,
+  // prepend a space to the string.
+  if (
+    $array_length > 0 &&
+    phutil_utf8_is_combining_character($components[0])) {
+    $string = " ".$string;
+    $components = phutil_utf8v($string);
+    $array_length++;
+  }
+
+  for ($index = 1; $index < $array_length; $index++) {
+    if (phutil_utf8_is_combining_character($components[$index])) {
+      $components[$index - 1] =
+        $components[$index - 1].$components[$index];
+
+      unset($components[$index]);
+      $components = array_values($components);
+
+      $index --;
+      $array_length = count($components);
+    }
+  }
+
+  return $components;
 }

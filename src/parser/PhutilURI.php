@@ -2,8 +2,6 @@
 
 /**
  * Basic URI parser object.
- *
- * @group util
  */
 final class PhutilURI {
 
@@ -35,14 +33,15 @@ final class PhutilURI {
     // stringyness is to preserve API compatibility and
     // allow the tests to continue passing
     $this->protocol = idx($parts, 'scheme', '');
-    $this->user     = idx($parts, 'user', '');
-    $this->pass     = idx($parts, 'pass', '');
+    $this->user     = rawurldecode(idx($parts, 'user', ''));
+    $this->pass     = rawurldecode(idx($parts, 'pass', ''));
     $this->domain   = idx($parts, 'host', '');
     $this->port     = (string)idx($parts, 'port', '');
     $this->path     = idx($parts, 'path', '');
     $query = idx($parts, 'query');
     if ($query) {
-      parse_str($query, $this->query);
+      $this->query = id(new PhutilQueryStringParser())->parseQueryString(
+        $query);
     }
     $this->fragment = idx($parts, 'fragment', '');
   }
@@ -53,10 +52,11 @@ final class PhutilURI {
       $protocol = nonempty($this->protocol, 'http');
 
       $auth = '';
-      if ($this->user && $this->pass) {
-        $auth = $this->user.':'.$this->pass.'@';
-      } else if ($this->user) {
-        $auth = $this->user.'@';
+      if (strlen($this->user) && strlen($this->pass)) {
+        $auth = phutil_escape_uri($this->user).':'.
+                phutil_escape_uri($this->pass).'@';
+      } else if (strlen($this->user)) {
+        $auth = phutil_escape_uri($this->user).'@';
       }
 
       $prefix = $protocol.'://'.$auth.$this->domain;
@@ -170,4 +170,3 @@ final class PhutilURI {
   }
 
 }
-

@@ -21,7 +21,7 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
     // For some reason my laptop is segfaulting on long inputs inside
     // preg_match(). Forestall this craziness in the common case, at least.
     phutil_utf8ize(str_repeat('x', 1024 * 1024));
-    $this->assertEqual(true, true);
+    $this->assertTrue(true);
   }
 
   public function testUTF8izeInvalidUTF8Fixed() {
@@ -131,6 +131,10 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
       array("D5rpderp, derp derp", 16, "...", "D5rpderp..."),
       array("D6rpderp, derp derp", 17, "...", "D6rpderp, derp..."),
 
+      // Strings with combining characters.
+      array("Gr\xCD\xA0mpyCatSmiles", 8, "...", "Gr\xCD\xA0mpy..."),
+      array("X\xCD\xA0\xCD\xA0\xCD\xA0Y", 1, "", "X\xCD\xA0\xCD\xA0\xCD\xA0"),
+
       // This behavior is maybe a little bad, but it seems mostly reasonable,
       // at least for latin languages.
       array("Derp, supercalafragalisticexpialadoshus", 30, "...",
@@ -139,6 +143,9 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
       // If a string has only word-break characters in it, we should just cut
       // it, not produce only the terminal.
       array("((((((((((", 8, '...', '(((((...'),
+
+      // Terminal is longer than requested input.
+      array('derp', 3, 'quack', 'quack'),
     );
 
     foreach ($inputs as $input) {
@@ -147,14 +154,6 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
       $this->assertEqual($expect, $result, 'Shortening of '.$string);
     }
 
-    try {
-      phutil_utf8_shorten('derp', 3, 'quack');
-      $caught = false;
-    } catch (Exception $ex) {
-      $caught = true;
-    }
-
-    $this->assertEqual(true, $caught, 'Expect exception for terminal.');
   }
 
   public function testUTF8Wrap() {
@@ -278,7 +277,7 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
     } catch (Exception $ex) {
       $caught = $ex;
     }
-    $this->assertEqual(true, (bool)$caught, 'Requires source encoding.');
+    $this->assertTrue((bool)$caught, 'Requires source encoding.');
 
     $caught = null;
     try {
@@ -286,7 +285,7 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
     } catch (Exception $ex) {
       $caught = $ex;
     }
-    $this->assertEqual(true, (bool)$caught, 'Requires target encoding.');
+    $this->assertTrue((bool)$caught, 'Requires target encoding.');
   }
 
 
@@ -310,7 +309,7 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
       $caught = $ex;
     }
 
-    $this->assertEqual(true, (bool)$caught, 'Conversion with bogus encoding.');
+    $this->assertTrue((bool)$caught, 'Conversion with bogus encoding.');
   }
 
 
@@ -368,5 +367,119 @@ final class PhutilUTF8TestCase extends PhutilTestCase {
     }
   }
 
+  public function testUTF8IsCombiningCharacter() {
+    $character = "\xCD\xA0";
+    $this->assertEqual(
+      true,
+      phutil_utf8_is_combining_character($character));
+
+    $character = 'a';
+    $this->assertEqual(
+      false,
+      phutil_utf8_is_combining_character($character));
+  }
+
+  public function testUTF8vCombined() {
+    // Empty string.
+    $string = '';
+    $this->assertEqual(array(), phutil_utf8v_combined($string));
+
+    // Single character.
+    $string = 'x';
+    $this->assertEqual(array('x'), phutil_utf8v_combined($string));
+
+    // No combining characters.
+    $string = 'cat';
+    $this->assertEqual(array('c', 'a', 't'), phutil_utf8v_combined($string));
+
+    // String with a combining character in the middle.
+    $string = "ca\xCD\xA0t";
+    $this->assertEqual(
+      array('c', "a\xCD\xA0", 't'),
+      phutil_utf8v_combined($string));
+
+    // String starting with a combined character.
+    $string = "c\xCD\xA0at";
+    $this->assertEqual(
+      array("c\xCD\xA0", 'a', 't'),
+      phutil_utf8v_combined($string));
+
+    // String with trailing combining character.
+    $string = "cat\xCD\xA0";
+    $this->assertEqual(
+      array('c', 'a', "t\xCD\xA0"),
+      phutil_utf8v_combined($string));
+
+    // String with muliple combined characters.
+    $string = "c\xCD\xA0a\xCD\xA0t\xCD\xA0";
+    $this->assertEqual(
+      array("c\xCD\xA0", "a\xCD\xA0", "t\xCD\xA0"),
+      phutil_utf8v_combined($string));
+
+    // String with multiple combining characters.
+    $string = "ca\xCD\xA0\xCD\xA0t";
+    $this->assertEqual(
+      array('c', "a\xCD\xA0\xCD\xA0", 't'),
+      phutil_utf8v_combined($string));
+
+    // String beginning with a combining character.
+    $string = "\xCD\xA0\xCD\xA0c";
+    $this->assertEqual(
+      array(" \xCD\xA0\xCD\xA0", 'c'),
+      phutil_utf8v_combined($string));
+
+  }
+
+  public function testUTF8BMPSegfaults() {
+    // This test case fails by segfaulting, or passes by not segfaulting. See
+    // the function implementation for details.
+    $input = str_repeat("\xEF\xBF\xBF", 1024 * 32);
+    phutil_is_utf8_with_only_bmp_characters($input);
+
+    $this->assertTrue(true);
+  }
+
+  public function testUTF8BMP() {
+    $tests = array(
+      ""  => array(true, true, "empty string"),
+      "a" => array(true, true, "a"),
+      "a\xCD\xA0\xCD\xA0" => array(true, true, "a with combining"),
+      "\xE2\x98\x83" => array(true, true, "snowman"),
+
+      // This is the last character in BMP, U+FFFF.
+      "\xEF\xBF\xBF" => array(true, true, "U+FFFF"),
+
+      // This isn't valid.
+      "\xEF\xBF\xC0" => array(false, false, "Invalid, byte range."),
+
+      // This is the first character above BMP, U+10000.
+      "\xF0\x90\x80\x80" => array(true, false, "U+10000"),
+      "\xF0\x9D\x84\x9E" => array(true, false, "gclef"),
+
+      "musical \xF0\x9D\x84\x9E g-clef" => array(true, false, "gclef text"),
+      "\xF0\x9D\x84" => array(false, false, "Invalid, truncated."),
+
+      "\xE0\x80\x80" => array(false, false, "Nonminimal 3-byte character."),
+
+      // Partial BMP characters.
+      "\xCD" => array(false, false, "Partial 2-byte character."),
+      "\xE0\xA0" => array(false, false, "Partial BMP 0xE0 character."),
+      "\xE2\x98" => array(false, false, "Partial BMP cahracter."),
+    );
+
+    foreach ($tests as $input => $test) {
+      list($expect_utf8, $expect_bmp, $test_name) = $test;
+
+      $this->assertEqual(
+        $expect_utf8,
+        phutil_is_utf8($input),
+        pht('is_utf(%s)', $test_name));
+
+      $this->assertEqual(
+        $expect_bmp,
+        phutil_is_utf8_with_only_bmp_characters($input),
+        pht('is_utf_bmp(%s)', $test_name));
+    }
+  }
 
 }

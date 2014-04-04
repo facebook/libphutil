@@ -15,7 +15,6 @@
  *
  * @param   wild Anything.
  * @return  wild Unmodified argument.
- * @group   util
  */
 function id($x) {
   return $x;
@@ -33,7 +32,6 @@ function id($x) {
  *                  array.
  * @return  wild    If $array[$key] exists, that value is returned. If not,
  *                  $default is returned without raising a warning.
- * @group   util
  */
 function idx(array $array, $key, $default = null) {
   // isset() is a micro-optimization - it is fast but fails for null values.
@@ -105,7 +103,6 @@ function idx(array $array, $key, $default = null) {
  *                        ##null## to preserve the original keys.
  * @return  dict          A dictionary with keys and values derived according
  *                        to whatever you passed as $method and $key_method.
- * @group   util
  */
 function mpull(array $list, $method, $key_method = null) {
   $result = array();
@@ -179,7 +176,6 @@ function mpull(array $list, $method, $key_method = null) {
  *                        ##null## to preserve the original keys.
  * @return  dict          A dictionary with keys and values derived according
  *                        to whatever you passed as $property and $key_property.
- * @group   util
  */
 function ppull(array $list, $property, $key_property = null) {
   $result = array();
@@ -228,7 +224,6 @@ function ppull(array $list, $property, $key_property = null) {
  *                        array, or null to preserve the array keys.
  * @return  dict          A dictionary with keys and values derived according
  *                        to whatever you passed for $index and $key_index.
- * @group   util
  */
 function ipull(array $list, $index, $key_index = null) {
   $result = array();
@@ -277,7 +272,6 @@ function ipull(array $list, $index, $key_index = null) {
  *                  groups.
  * @return  dict    Dictionary mapping distinct method returns to lists of
  *                  all objects which returned that value.
- * @group   util
  */
 function mgroup(array $list, $by /* , ... */) {
   $map = mpull($list, $by);
@@ -318,7 +312,6 @@ function mgroup(array $list, $by /* , ... */) {
  *                  groups.
  * @return  dict    Dictionary mapping distinct index values to lists of
  *                  all objects which had that value at the index.
- * @group   util
  */
 function igroup(array $list, $by /* , ... */) {
   $map = ipull($list, $by);
@@ -363,7 +356,6 @@ function igroup(array $list, $by /* , ... */) {
  * @param   string  Name of a method to call on each object; the return values
  *                  will be used to sort the list.
  * @return  list    Objects ordered by the return values of the method calls.
- * @group   util
  */
 function msort(array $list, $method) {
   $surrogate = mpull($list, $method);
@@ -388,7 +380,6 @@ function msort(array $list, $method) {
  * @param   string  Index to access on each object; the return values
  *                  will be used to sort the list.
  * @return  list    Arrays ordered by the index values.
- * @group   util
  */
 function isort(array $list, $index) {
   $surrogate = ipull($list, $index);
@@ -426,7 +417,6 @@ function isort(array $list, $index) {
  *                      filter instead of keeping them.
  *
  * @return array   List of objects which pass the filter.
- * @group  util
  */
 function mfilter(array $list, $method, $negate = false) {
   if (!is_string($method)) {
@@ -473,7 +463,6 @@ function mfilter(array $list, $method, $negate = false) {
  *                      filter instead of keeping them.
  *
  * @return array   List of arrays which pass the filter.
- * @group  util
  */
 function ifilter(array $list, $index, $negate = false) {
   if (!is_scalar($index)) {
@@ -513,7 +502,6 @@ function ifilter(array $list, $index, $negate = false) {
  * @return dict    Dictionary of only those key-value pairs where the key was
  *                 present in the list of keys to select. Ordering is
  *                 determined by the list order.
- * @group   util
  */
 function array_select_keys(array $dict, array $keys) {
   $result = array();
@@ -533,7 +521,6 @@ function array_select_keys(array $dict, array $keys) {
  * @param  array
  * @param  string  Name of the class or 'array' to check arrays.
  * @return array   Returns passed array.
- * @group   util
  */
 function assert_instances_of(array $arr, $class) {
   $is_array = !strcasecmp($class, 'array');
@@ -599,7 +586,6 @@ function assert_stringlike($parameter) {
  *
  * @param  ...         Zero or more arguments of any type.
  * @return mixed       First non-##null## arg, or null if no such arg exists.
- * @group  util
  */
 function coalesce(/* ... */) {
   $args = func_get_args();
@@ -623,7 +609,6 @@ function coalesce(/* ... */) {
  * @param  ...         Zero or more arguments of any type.
  * @return mixed       First non-##empty()## arg, or last arg if no such arg
  *                     exists, or null if you passed in zero args.
- * @group  util
  */
 function nonempty(/* ... */) {
   $args = func_get_args();
@@ -671,7 +656,6 @@ function nonempty(/* ... */) {
  * @param  list    Array of arguments to pass to its constructor.
  * @return obj     A new object of the specified class, constructed by passing
  *                 the argument vector to its constructor.
- * @group util
  */
 function newv($class_name, array $argv) {
   $reflector = new ReflectionClass($class_name);
@@ -690,7 +674,6 @@ function newv($class_name, array $argv) {
  *
  * @param    array Array to retrieve the first element from.
  * @return   wild  The first value of the array.
- * @group util
  */
 function head(array $arr) {
   return reset($arr);
@@ -703,7 +686,6 @@ function head(array $arr) {
  *
  * @param    array Array to retrieve the last element from.
  * @return   wild  The last value of the array.
- * @group util
  */
 function last(array $arr) {
   return end($arr);
@@ -714,7 +696,6 @@ function last(array $arr) {
  *
  * @param    array       Array to retrieve the first key from.
  * @return   int|string  The first key of the array.
- * @group util
  */
 function head_key(array $arr) {
   reset($arr);
@@ -726,7 +707,6 @@ function head_key(array $arr) {
  *
  * @param    array       Array to retrieve the last key from.
  * @return   int|string  The last key of the array.
- * @group util
  */
 function last_key(array $arr) {
   end($arr);
@@ -746,7 +726,6 @@ function last_key(array $arr) {
  *
  * @param list Vector of arrays to merge.
  * @return list Arrays, merged with array_merge() semantics.
- * @group util
  */
 function array_mergev(array $arrayv) {
   if (!$arrayv) {
@@ -767,7 +746,6 @@ function array_mergev(array $arrayv) {
  * @param string Block of text to be split into lines.
  * @param bool If true, retain line endings in result strings.
  * @return list List of lines.
- * @group util
  */
 function phutil_split_lines($corpus, $retain_endings = true) {
   if (!strlen($corpus)) {
@@ -812,7 +790,6 @@ function phutil_split_lines($corpus, $retain_endings = true) {
  *
  * @param   list  List of scalars.
  * @return  dict  Dictionary with inputs mapped to themselves.
- * @group util
  */
 function array_fuse(array $list) {
   if ($list) {
@@ -839,7 +816,6 @@ function array_fuse(array $list) {
  * @param wild  Element to interleave.
  * @param list  List of elements to be interleaved.
  * @return list Original list with the new element interleaved.
- * @group util
  */
 function array_interleave($interleave, array $array) {
   $result = array();
@@ -866,4 +842,229 @@ function phutil_is_windows() {
  */
 function phutil_is_hiphop_runtime() {
   return (array_key_exists('HPHP', $_ENV) && $_ENV['HPHP'] === 1);
+}
+
+/**
+ * Fire an event allowing any listeners to clear up any outstanding requirements
+ * before the request completes abruptly.
+ *
+ * @param int|string $status
+ * @group library
+ */
+function phutil_exit($status = 0) {
+  $event = new PhutilEvent(
+    PhutilEventType::TYPE_WILLEXITABRUPTLY,
+    array("status" => $status));
+  PhutilEventEngine::dispatchEvent($event);
+
+  exit($status);
+}
+
+/**
+ * Converts a string to a loggable one, with unprintables and newlines escaped.
+ *
+ * @param string  Any string.
+ * @return string String with control and newline characters escaped, suitable
+ *                for printing on a single log line.
+ */
+function phutil_loggable_string($string) {
+  if (preg_match('/^[\x20-\x7E]+$/', $string)) {
+    return $string;
+  }
+
+  $result = '';
+
+  static $c_map = array(
+    "\\" => '\\\\',
+    "\n" => '\\n',
+    "\r" => '\\r',
+    "\t" => '\\t',
+  );
+
+  $len = strlen($string);
+  for ($ii = 0; $ii < $len; $ii++) {
+    $c = $string[$ii];
+    if (isset($c_map[$c])) {
+      $result .= $c_map[$c];
+    } else {
+      $o = ord($c);
+      if ($o < 0x20 || $o == 0x7F) {
+        $result .= '\\x'.sprintf('%02X', $o);
+      } else {
+        $result .= $c;
+      }
+    }
+  }
+
+  return $result;
+}
+
+
+/**
+ * Perform an `fwrite()` which distinguishes between EAGAIN and EPIPE.
+ *
+ * PHP's `fwrite()` is broken, and never returns `false` for writes to broken
+ * nonblocking pipes: it always returns 0, and provides no straightforward
+ * mechanism for distinguishing between EAGAIN (buffer is full, can't write any
+ * more right now) and EPIPE or similar (no write will ever succeed).
+ *
+ * See: https://bugs.php.net/bug.php?id=39598
+ *
+ * If you call this method instead of `fwrite()`, it will attempt to detect
+ * when a zero-length write is caused by EAGAIN and return `0` only if the
+ * write really should be retried.
+ *
+ * @param resource  Socket or pipe stream.
+ * @param string    Bytes to write.
+ * @return bool|int Number of bytes written, or `false` on any error (including
+ *                  errors which `fpipe()` can not detect, like a broken pipe).
+ */
+function phutil_fwrite_nonblocking_stream($stream, $bytes) {
+  if (!strlen($bytes)) {
+    return 0;
+  }
+
+  $result = @fwrite($stream, $bytes);
+  if ($result !== 0) {
+    // In cases where some bytes are witten (`$result > 0`) or
+    // an error occurs (`$result === false`), the behavior of fwrite() is
+    // correct. We can return the value as-is.
+    return $result;
+  }
+
+  // If we make it here, we performed a 0-length write. Try to distinguish
+  // between EAGAIN and EPIPE. To do this, we're going to `stream_select()`
+  // the stream, write to it again if PHP claims that it's writable, and
+  // consider the pipe broken if the write fails.
+
+  $read = array();
+  $write = array($stream);
+  $except = array();
+
+  @stream_select($read, $write, $except, 0);
+
+  if (!$write) {
+    // The stream isn't writable, so we conclude that it probably really is
+    // blocked and the underlying error was EAGAIN. Return 0 to indicate that
+    // no data could be written yet.
+    return 0;
+  }
+
+  // If we make it here, PHP **just** claimed that this stream is writable, so
+  // perform a write. If the write also fails, conclude that these failures are
+  // EPIPE or some other permanent failure.
+  $result = @fwrite($stream, $bytes);
+  if ($result !== 0) {
+    // The write worked or failed explicitly. This value is fine to return.
+    return $result;
+  }
+
+  // We performed a 0-length write, were told that the stream was writable, and
+  // then immediately performed another 0-length write. Conclude that the pipe
+  // is broken and return `false`.
+  return false;
+}
+
+
+/**
+ * Convert a human-readable unit description into a numeric one. This function
+ * allows you to replace this:
+ *
+ *   COUNTEREXAMPLE
+ *   $ttl = (60 * 60 * 24 * 30); // 30 days
+ *
+ * ...with this:
+ *
+ *   $ttl = phutil_units('30 days in seconds');
+ *
+ * ...which is self-documenting and difficult to make a mistake with.
+ *
+ * @param   string  Human readable description of a unit quantity.
+ * @return  int     Quantity of specified unit.
+ */
+function phutil_units($description) {
+
+  $matches = null;
+  if (!preg_match('/^(\d+) (\w+) in (\w+)$/', $description, $matches)) {
+    throw new InvalidArgumentException(
+      pht(
+        'Unable to parse unit specification (expected a specification in the '.
+        'form "5 days in seconds"): %s',
+        $description));
+  }
+
+  $quantity = (int)$matches[1];
+  $src_unit = $matches[2];
+  $dst_unit = $matches[3];
+
+  switch ($dst_unit) {
+    case 'seconds':
+      switch ($src_unit) {
+        case 'second':
+        case 'seconds':
+          $factor = 1;
+          break;
+        case 'minute':
+        case 'minutes':
+          $factor = 60;
+          break;
+        case 'hour':
+        case 'hours':
+          $factor = 60 * 60;
+          break;
+        case 'day':
+        case 'days':
+          $factor = 60 * 60 * 24;
+          break;
+        default:
+          throw new InvalidArgumentException(
+            pht(
+              'This function can not convert from the unit "%s".',
+              $src_unit));
+      }
+      break;
+    default:
+      throw new InvalidArgumentException(
+        pht(
+          'This function can not convert into the unit "%s".',
+          $dst_unit));
+  }
+
+  return $quantity * $factor;
+}
+
+
+/**
+ * Decode a JSON dictionary, or return a default value if the input does not
+ * decode or does not decode into a dictionary.
+ *
+ * @param   string    A string which ostensibly contains a JSON-encoded list or
+ *                    dictionary.
+ * @param   default?  Optional default value to return if the string does not
+ *                    decode, or does not decode into a list or dictionary.
+ * @return  mixed     Decoded list/dictionary, or default value if string
+ *                    failed to decode.
+ */
+function phutil_json_decode($string, $default = array()) {
+  $result = @json_decode($string, true);
+  if (!is_array($result)) {
+    return $default;
+  }
+  return $result;
+}
+
+
+/**
+ * Attempt to censor any plaintext credentials from a string.
+ *
+ * The major use case here is to censor usernames and passwords from command
+ * output. For example, when `git fetch` fails, the output includes credentials
+ * for authenticated HTTP remotes.
+ *
+ * @param   string  Some block of text.
+ * @return  string  A similar block of text, but with credentials that could
+ *                  be identified censored.
+ */
+function phutil_censor_credentials($string) {
+  return preg_replace(',(?<=://)([^/@\s]+)(?=@|$),', 'xxxxx', $string);
 }

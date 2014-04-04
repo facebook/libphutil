@@ -75,10 +75,41 @@ final class AbstractDirectedGraphTestCase extends PhutilTestCase {
       $raised = $ex;
     }
 
-    $this->assertEqual(
-      true,
+    $this->assertTrue(
       (bool)$raised,
       'Exception raised by unloadable edges.');
+  }
+
+  public function testTopographicSortTree() {
+    $graph = array(
+      'A' => array('B', 'C'),
+      'B' => array('D', 'E'),
+      'C' => array(),
+      'D' => array(),
+      'E' => array()
+    );
+
+    $sorted = $this->getTopographicSort($graph);
+
+    $this->assertEqual(
+      array('A', 'C', 'B', 'E', 'D'),
+      $sorted,
+      'Topographically sorted tree.');
+
+    $graph = array(
+      'A' => array('B', 'C'),
+      'B' => array('C'),
+      'C' => array('D', 'E'),
+      'D' => array('E'),
+      'E' => array()
+    );
+
+    $sorted = $this->getTopographicSort($graph);
+
+    $this->assertEqual(
+      array('A', 'B', 'C', 'D', 'E'),
+      $sorted,
+      'Topographically sorted tree with nesting.');
   }
 
   private function findGraphCycle(array $graph, $seed = 'A', $search = 'A') {
@@ -87,5 +118,13 @@ final class AbstractDirectedGraphTestCase extends PhutilTestCase {
     $detector->addNodes(array_select_keys($graph, array($seed)));
     $detector->loadGraph();
     return $detector->detectCycles($search);
+  }
+
+  private function getTopographicSort(array $graph, $seed = 'A') {
+    $detector = new TestAbstractDirectedGraph();
+    $detector->setTestData($graph);
+    $detector->addNodes(array_select_keys($graph, array($seed)));
+    $detector->loadGraph();
+    return $detector->getTopographicallySortedNodes();
   }
 }

@@ -74,7 +74,7 @@ abstract class AphrontMySQLDatabaseConnectionBase
 
   public function escapeStringForLikeClause($value) {
     $value = addcslashes($value, '\%_');
-    $value = $this->escapeString($value);
+    $value = $this->escapeUTF8String($value);
     return $value;
   }
 
@@ -255,7 +255,10 @@ abstract class AphrontMySQLDatabaseConnectionBase
   }
 
   protected function checkWrite($raw_query) {
-    $is_write = !preg_match('/^(SELECT|SHOW|EXPLAIN)\s/', $raw_query);
+    // NOTE: The opening "(" allows queries in the form of:
+    //
+    //   (SELECT ...) UNION (SELECT ...)
+    $is_write = !preg_match('/^[(]*(SELECT|SHOW|EXPLAIN)\s/', $raw_query);
     if ($is_write) {
       AphrontWriteGuard::willWrite();
       return true;
@@ -316,6 +319,24 @@ abstract class AphrontMySQLDatabaseConnectionBase
   public function simulateErrorOnNextQuery($error) {
     $this->nextError = $error;
     return $this;
+  }
+
+  /**
+   * Check inserts for characters outside of the BMP. Even with the strictest
+   * settings, MySQL will silently truncate data when it encounters these, which
+   * can lead to data loss and security problems.
+   */
+  protected function validateUTF8String($string) {
+    if (phutil_is_utf8_with_only_bmp_characters($string)) {
+      return;
+    }
+
+    throw new AphrontQueryCharacterSetException(
+      pht(
+        'Attempting to construct a query containing characters outside of '.
+        'the Unicode Basic Multilingual Plane. MySQL will silently truncate '.
+        'this data if it is inserted into a `utf8` column. Use the `%%B` '.
+        'conversion to escape binary strings data.'));
   }
 
 }

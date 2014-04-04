@@ -6,7 +6,12 @@
 final class AphrontMySQLDatabaseConnection
   extends AphrontMySQLDatabaseConnectionBase {
 
-  public function escapeString($string) {
+  public function escapeUTF8String($string) {
+    $this->validateUTF8String($string);
+    return $this->escapeBinaryString($string);
+  }
+
+  public function escapeBinaryString($string) {
     return mysql_real_escape_string($string, $this->requireConnection());
   }
 
@@ -35,6 +40,12 @@ final class AphrontMySQLDatabaseConnection
 
     $user = $this->getConfiguration('user');
     $host = $this->getConfiguration('host');
+    $port = $this->getConfiguration('port');
+
+    if ($port) {
+      $host .= ':'.$port;
+    }
+
     $database = $this->getConfiguration('database');
 
     $pass = $this->getConfiguration('pass');

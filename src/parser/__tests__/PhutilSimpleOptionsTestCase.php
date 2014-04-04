@@ -80,6 +80,25 @@ final class PhutilSimpleOptionsTestCase extends PhutilTestCase {
     }
   }
 
+  public function testSimpleOptionsUnterminatedStrings() {
+    $list = array(
+      '"',
+      "'",
+      'a="',
+      "a='",
+      'a="\\',
+      "a='\\",
+    );
+
+    foreach ($list as $input) {
+      $parser = new PhutilSimpleOptions();
+      $this->assertEqual(
+        array(),
+        $parser->parse($input),
+        "Correct failing parse of invalid input: {$input}");
+    }
+  }
+
   public function testSimpleOptionsUnparse() {
     $map = array(
       '' => array(),
@@ -112,8 +131,7 @@ final class PhutilSimpleOptionsTestCase extends PhutilTestCase {
       } catch (Exception $ex) {
         $caught = $ex;
       }
-      $this->assertEqual(
-        true,
+      $this->assertTrue(
         $caught instanceof Exception,
         "Correct throw on unparse of bad input.");
     }
