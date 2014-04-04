@@ -301,15 +301,10 @@ final class HTTPSFuture extends BaseHTTPFuture {
 
       if (!$this->getCABundle()) {
         $caroot = dirname(phutil_get_library_root('phutil')).'/resources/ssl/';
-<<<<<<< HEAD
-    $ini_val = ini_get('curl.cainfo');
-      if (Filesystem::pathExists($caroot.'custom.pem')) {
-=======
         $ini_val = ini_get('curl.cainfo');
         if (self::getGlobalCABundle()) {
           $this->setCABundleFromPath(self::getGlobalCABundle());
         } else if (Filesystem::pathExists($caroot.'custom.pem')) {
->>>>>>> upstream/master
           $this->setCABundleFromPath($caroot.'custom.pem');
         } else if ($ini_val) {
           // TODO: We can probably do a pathExists() here, even.
@@ -319,9 +314,6 @@ final class HTTPSFuture extends BaseHTTPFuture {
       }
     }
       curl_setopt($curl, CURLOPT_CAINFO, $this->getCABundle());
-<<<<<<< HEAD
-    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
-=======
 
       $domain = id(new PhutilURI($uri))->getDomain();
       if (!empty(self::$blindTrustDomains[$domain])) {
@@ -331,7 +323,6 @@ final class HTTPSFuture extends BaseHTTPFuture {
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
       }
 
->>>>>>> upstream/master
       curl_setopt($curl, CURLOPT_SSLVERSION, 0);
     } else {
       $curl = $this->handle;
