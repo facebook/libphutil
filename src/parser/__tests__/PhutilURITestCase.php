@@ -2,8 +2,6 @@
 
 /**
  * Test cases for @{class:PhutilURI} parser.
- *
- * @group testcase
  */
 final class PhutilURITestCase extends PhutilTestCase {
 
@@ -79,6 +77,43 @@ final class PhutilURITestCase extends PhutilTestCase {
   public function testStrictURIParsingOfLeadingWhitespace() {
     $uri = new PhutilURI(' http://example.com/');
     $this->assertEqual('', $uri->getDomain());
+  }
+
+  public function testAppendPath() {
+    $uri = new PhutilURI('http://example.com');
+    $uri->appendPath('foo');
+    $this->assertEqual('http://example.com/foo', $uri->__toString());
+    $uri->appendPath('bar');
+    $this->assertEqual('http://example.com/foo/bar', $uri->__toString());
+
+    $uri = new PhutilURI('http://example.com');
+    $uri->appendPath('/foo/');
+    $this->assertEqual('http://example.com/foo/', $uri->__toString());
+    $uri->appendPath('/bar/');
+    $this->assertEqual('http://example.com/foo/bar/', $uri->__toString());
+
+    $uri = new PhutilURI('http://example.com');
+    $uri->appendPath('foo');
+    $this->assertEqual('http://example.com/foo', $uri->__toString());
+    $uri->appendPath('/bar/');
+    $this->assertEqual('http://example.com/foo/bar/', $uri->__toString());
+  }
+
+  public function testUnusualURIs() {
+    $uri = new PhutilURI('file:///path/to/file');
+    $this->assertEqual('file', $uri->getProtocol(), 'protocol');
+    $this->assertEqual('', $uri->getDomain(), 'domain');
+    $this->assertEqual('/path/to/file', $uri->getPath(), 'path');
+
+    $uri = new PhutilURI('idea://open?x=/');
+    $this->assertEqual('idea', $uri->getProtocol(), 'protocol');
+    $this->assertEqual('open', $uri->getDomain(), 'domain');
+    $this->assertEqual('', $uri->getPath(), 'path');
+    $this->assertEqual(
+      array(
+        'x' => '/',
+      ),
+      $uri->getQueryParams());
   }
 
 }

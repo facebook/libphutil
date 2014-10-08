@@ -1,8 +1,5 @@
 <?php
 
-/**
- * @group testcase
- */
 final class PhutilMarkupTestCase extends PhutilTestCase {
 
   public function testTagDefaults() {
@@ -79,6 +76,7 @@ final class PhutilMarkupTestCase extends PhutilTestCase {
       '  http://www.example.org/' => true,
       'ftp://filez.com' => true,
       'mailto:santa@northpole.com' => true,
+      'tel:18005555555' => true,
     );
 
     foreach ($map as $input => $expect) {
@@ -119,7 +117,10 @@ final class PhutilMarkupTestCase extends PhutilTestCase {
     $hrefs = array(
       'javascript:alert(1)'         => true,
       'JAVASCRIPT:alert(2)'         => true,
-      '     javascript:alert(3)'    => true,
+
+      // NOTE: When interpreted as a URI, this is dropped because of leading
+      // whitespace.
+      '     javascript:alert(3)'    => array(true, false),
       '/'                           => false,
       '/path/to/stuff/'             => false,
       ''                            => false,
@@ -158,6 +159,10 @@ final class PhutilMarkupTestCase extends PhutilTestCase {
 
     foreach (array(true, false) as $use_uri) {
       foreach ($hrefs as $href => $expect) {
+        if (is_array($expect)) {
+          $expect = ($use_uri ? $expect[1] : $expect[0]);
+        }
+
         if ($use_uri) {
           $href = new PhutilURI($href);
         }
@@ -239,23 +244,22 @@ final class PhutilMarkupTestCase extends PhutilTestCase {
           hsprintf('</div>'),
         )));
 
-      $this->assertEqual(
-        '<div><br /><hr /><wbr /></div>',
-        phutil_tag(
-          'div',
-          array(
-          ),
+    $this->assertEqual(
+      '<div><br /><hr /><wbr /></div>',
+      phutil_tag(
+        'div',
+        array(),
+        array(
           array(
             array(
+              phutil_tag('br'),
               array(
-                phutil_tag('br'),
-                array(
-                  phutil_tag('hr'),
-                ),
-                phutil_tag('wbr'),
+                phutil_tag('hr'),
               ),
+              phutil_tag('wbr'),
             ),
-          ))->getHTMLContent());
-    }
+          ),
+        ))->getHTMLContent());
+  }
 
 }
