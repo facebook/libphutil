@@ -224,7 +224,6 @@ final class HTTPSFuture extends BaseHTTPFuture {
         curl_setopt($curl, CURLOPT_PROTOCOLS, $allowed_protocols);
         curl_setopt($curl, CURLOPT_REDIR_PROTOCOLS, $allowed_protocols);
       }
-    $data = $this->getData();
 
       $data = $this->formatRequestDataForCURL();
       curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
@@ -256,8 +255,8 @@ final class HTTPSFuture extends BaseHTTPFuture {
       }
       curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
-    // Set the requested HTTP method, e.g. GET / POST / PUT.
-    curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $this->getMethod());
+      // Set the requested HTTP method, e.g. GET / POST / PUT.
+      curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $this->getMethod());
 
       // Make sure we get the headers and data back.
       curl_setopt($curl, CURLOPT_HEADER, true);
@@ -269,18 +268,15 @@ final class HTTPSFuture extends BaseHTTPFuture {
         curl_setopt($curl, CURLOPT_MAXREDIRS, 20);
       }
 
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_MAXREDIRS, 20);
-
-    if (defined('CURLOPT_TIMEOUT_MS')) {
-      // If CURLOPT_TIMEOUT_MS is available, use the higher-precision timeout.
-      $timeout = max(1, ceil(1000 * $this->getTimeout()));
-      curl_setopt($curl, CURLOPT_TIMEOUT_MS, $timeout);
-    } else {
-      // Otherwise, fall back to the lower-precision timeout.
-      $timeout = max(1, ceil($this->getTimeout()));
-      curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
-    }
+      if (defined('CURLOPT_TIMEOUT_MS')) {
+        // If CURLOPT_TIMEOUT_MS is available, use the higher-precision timeout.
+        $timeout = max(1, ceil(1000 * $this->getTimeout()));
+        curl_setopt($curl, CURLOPT_TIMEOUT_MS, $timeout);
+      } else {
+        // Otherwise, fall back to the lower-precision timeout.
+        $timeout = max(1, ceil($this->getTimeout()));
+        curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
+      }
 
       // We're going to try to set CAINFO below. This doesn't work at all on
       // OSX around Yosemite (see T5913). On these systems, we'll use the
@@ -314,8 +310,9 @@ final class HTTPSFuture extends BaseHTTPFuture {
         } else if ($ini_val) {
           // TODO: We can probably do a pathExists() here, even.
           $this->setCABundleFromPath($ini_val);
-      } else {
+        } else {
           $this->setCABundleFromPath($caroot.'default.pem');
+        }
       }
 
       if ($this->canSetCAInfo()) {
@@ -334,8 +331,6 @@ final class HTTPSFuture extends BaseHTTPFuture {
     } else {
       $curl = $this->handle;
 
-    // If this is not set to 3 curl commands will fail with error code 35.
-    curl_setopt($curl, CURLOPT_SSLVERSION, 3);
       if (!self::$results) {
         // NOTE: In curl_multi_select(), PHP calls curl_multi_fdset() but does
         // not check the return value of &maxfd for -1 until recent versions
