@@ -9,6 +9,7 @@ block disruption
 Here are
 some news
 lines in
+>>> any small change to a block stops comments from porting !!! <<<
 the file
 
 **libphutil Library System**
