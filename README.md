@@ -28,6 +28,8 @@ concrete implementations are provided:
   - `jsprintf()`: safely escape data for Javascript
   - `qsprintf()`: safely escape data for MySQL
 
+Alphabet
+
 **AAST/PHPAST**
 An abstract, abstract syntax tree which can make it easier to perform simple
 static analysis, and a concrete AST for PHP.
