@@ -3,14 +3,6 @@ quack quack
 `libphutil` is a collection of utility classes and functions for PHP. Some
 features of the library include:
 
-(Does it port from diff-view to diff-view only, with no way to review history?)
-change above
-
-Here are
- some new
-lines in
-the file
-
 **libphutil Library System**
 A system for organizing, loading and introspecting PHP classes and functions.
 Uses static analysis to generate, validate and update library contents and
@@ -44,9 +36,27 @@ Alphabet
 An abstract, abstract syntax tree which can make it easier to perform simple
 static analysis, and a concrete AST for PHP.
 
+(Does it port from diff-view to diff-view only, with no way to review history?)
+change above
+
+Here are
+ some new
+lines in
+the file
+
+
 **Remarkup**
 A Markdown-like lightweight markup language. Remarkup's syntax is defined by
 parser plugins and fairly easy to extend and configure.
+
+(Does it port from diff-view to diff-view only, with no way to review history?)
+change above
+
+Here are
+ some new
+lines in
+the file
+
 
 **Daemons**
 Enables running PHP scripts as stable, long-lived daemons.
