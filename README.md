@@ -1,6 +1,8 @@
 `libphutil` is a collection of utility classes and functions for PHP. Some
 features of the library include:
 
+(Does it port from diff-view to diff-view only, with no way to review history?)
+
 Here are
 some news
 lines in
