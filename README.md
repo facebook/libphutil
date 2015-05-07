@@ -2,7 +2,7 @@
 features of the library include:
 
 Here are
-some new
+some news
 lines in
 the file
 
