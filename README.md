@@ -1,3 +1,5 @@
+quack quack
+
 `libphutil` is a collection of utility classes and functions for PHP. Some
 features of the library include:
 
