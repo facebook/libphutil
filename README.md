@@ -7,7 +7,7 @@ features of the library include:
 change above
 
 Here are
-some news
+some new
 lines in
 the file
 
