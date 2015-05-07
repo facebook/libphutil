@@ -4,12 +4,11 @@ quack quack
 features of the library include:
 
 (Does it port from diff-view to diff-view only, with no way to review history?)
-block disruption
+change above
 
 Here are
 some news
 lines in
->>> any small change to a block stops comments from porting !!! <<<
 the file
 
 **libphutil Library System**
