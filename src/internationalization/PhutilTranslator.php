@@ -196,7 +196,7 @@ final class PhutilTranslator extends Phobject {
         return $plural;
 
       default:
-        throw new Exception(pht("Unknown language '%s'.", $this->language));
+        throw new Exception(pht("Unknown language '%s'.", $this->localeCode));
     }
   }
 
