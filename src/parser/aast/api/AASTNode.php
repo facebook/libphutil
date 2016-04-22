@@ -16,6 +16,8 @@ abstract class AASTNode extends Phobject {
 
   private $selectCache;
   private $tokenCache;
+  private $tokens;
+  private $concreteString;
 
   abstract public function isStaticScalar();
   abstract public function getDocblockToken();
@@ -254,6 +256,9 @@ abstract class AASTNode extends Phobject {
   }
 
   public function getTokens() {
+    if ($this->tokens) {
+      return $this->tokens;
+    }
     if ($this->l == -1 || $this->r == -1) {
       return array();
     }
@@ -262,15 +267,20 @@ abstract class AASTNode extends Phobject {
     foreach (range($this->l, $this->r) as $token_id) {
       $result[$token_id] = $tokens[$token_id];
     }
+    $this->tokens = $result;
     return $result;
   }
 
   public function getConcreteString() {
+    if ($this->concreteString) {
+      return $this->concreteString;
+    }
     $values = array();
     foreach ($this->getTokens() as $token) {
       $values[] = $token->getValue();
     }
-    return implode('', $values);
+    $this->concreteString = implode('', $values);
+    return $this->concreteString;
   }
 
   public function getSemanticString() {
