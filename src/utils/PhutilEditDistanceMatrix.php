@@ -45,7 +45,7 @@
  * delete = 1, replace = 1) and computing edit distances for strings of fewer
  * than 1,000 characters, you might set the alter cost to 0.001.
  */
-final class PhutilEditDistanceMatrix {
+final class PhutilEditDistanceMatrix extends Phobject {
 
   private $insertCost    = 1;
   private $deleteCost    = 1;
@@ -54,6 +54,7 @@ final class PhutilEditDistanceMatrix {
   private $alterCost     = 0;
   private $maximumLength;
   private $computeString;
+  private $applySmoothing = self::SMOOTHING_NONE;
 
   private $x;
   private $y;
@@ -62,6 +63,10 @@ final class PhutilEditDistanceMatrix {
 
   private $distanceMatrix = null;
   private $typeMatrix = null;
+
+  const SMOOTHING_NONE = 'none';
+  const SMOOTHING_INTERNAL = 'internal';
+  const SMOOTHING_FULL = 'full';
 
   public function setMaximumLength($maximum_length) {
     $this->maximumLength = $maximum_length;
@@ -126,6 +131,15 @@ final class PhutilEditDistanceMatrix {
     return $this->alterCost;
   }
 
+  public function setApplySmoothing($apply_smoothing) {
+    $this->applySmoothing = $apply_smoothing;
+    return $this;
+  }
+
+  public function getApplySmoothing() {
+    return $this->applySmoothing;
+  }
+
   public function setSequences(array $x, array $y) {
 
     // NOTE: We strip common prefixes and suffixes from the inputs because
@@ -165,8 +179,7 @@ final class PhutilEditDistanceMatrix {
 
   private function requireSequences() {
     if ($this->x === null) {
-      throw new Exception(
-        'Call setSequences() before performing useful work!');
+      throw new PhutilInvalidStateException('setSequences');
     }
   }
 
@@ -267,7 +280,7 @@ final class PhutilEditDistanceMatrix {
       } else if ($type == 'd') {
         $xx -= 1;
       } else {
-        throw new Exception("Unknown type '{$type}' in type matrix.");
+        throw new Exception(pht("Unknown type '%s' in type matrix.", $type));
       }
 
       $str .= $chr;
@@ -277,7 +290,35 @@ final class PhutilEditDistanceMatrix {
       }
     }
 
-    return $this->padEditString(strrev($str));
+    $str = strrev($str);
+
+    // For full smoothing, we pad the edit string before smoothing it, so
+    // ranges of similar characters at the beginning or end of the string can
+    // also be smoothed.
+
+    // For internal smoothing, we only smooth ranges within the change itself.
+
+    $smoothing = $this->getApplySmoothing();
+    switch ($smoothing) {
+      case self::SMOOTHING_FULL:
+        $str = $this->padEditString($str);
+        $str = $this->applySmoothing($str, true);
+        break;
+      case self::SMOOTHING_INTERNAL:
+        $str = $this->applySmoothing($str, false);
+        $str = $this->padEditString($str);
+        break;
+      case self::SMOOTHING_NONE:
+        $str = $this->padEditString($str);
+        break;
+      default:
+        throw new Exception(
+          pht(
+            'Unknown smoothing type "%s".',
+            $smoothing));
+    }
+
+    return $str;
   }
 
   private function padEditString($str) {
@@ -292,8 +333,7 @@ final class PhutilEditDistanceMatrix {
 
   private function getTypeMatrix() {
     if (!$this->computeString) {
-      throw new Exception(
-        'Call setComputeString() before getTypeMatrix().');
+      throw new PhutilInvalidStateException('setComputeString');
     }
     if ($this->typeMatrix === null) {
       $this->computeMatrix($this->x, $this->y);
@@ -366,8 +406,11 @@ final class PhutilEditDistanceMatrix {
     $alt_cost = $this->getAlterCost();
     if ($alt_cost && !$use_types) {
       throw new Exception(
-        'If you provide an alter cost with setAlterCost(), you must enable '.
-        'type computation with setComputeStrings().');
+        pht(
+          'If you provide an alter cost with %s, you must enable '.
+          'type computation with %s.',
+          'setAlterCost()',
+          'setComputeStrings()'));
     }
 
     // Build the edit distance matrix.
@@ -485,6 +528,28 @@ final class PhutilEditDistanceMatrix {
       }
       echo "\n";
     }
+  }
+
+  private function applySmoothing($str, $full) {
+    if ($full) {
+      $prefix = '(^|[xdi])';
+      $suffix = '([xdi]|\z)';
+    } else {
+      $prefix = '([xdi])';
+      $suffix = '([xdi])';
+    }
+
+    // Smooth the string out, by replacing short runs of similar characters
+    // with 'x' operations. This makes the result more readable to humans,
+    // since there are fewer choppy runs of short added and removed substrings.
+    do {
+      $original = $str;
+      $str = preg_replace('/'.$prefix.'(s{3})'.$suffix.'/', '$1xxx$3', $str);
+      $str = preg_replace('/'.$prefix.'(s{2})'.$suffix.'/', '$1xx$3', $str);
+      $str = preg_replace('/'.$prefix.'(s{1})'.$suffix.'/', '$1x$3', $str);
+    } while ($str != $original);
+
+    return $str;
   }
 
 }

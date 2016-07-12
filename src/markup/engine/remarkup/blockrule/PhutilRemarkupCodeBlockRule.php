@@ -123,7 +123,7 @@ final class PhutilRemarkupCodeBlockRule extends PhutilRemarkupBlockRule {
       if (!$lang) {
         $lang = nonempty(
           $this->getEngine()->getConfig('phutil.codeblock.language-default'),
-          'php');
+          'text');
       }
       $options['lang'] = $lang;
     }
@@ -131,22 +131,66 @@ final class PhutilRemarkupCodeBlockRule extends PhutilRemarkupBlockRule {
     $code_body = $this->highlightSource($text, $options);
 
     $name_header = null;
+    $block_style = null;
+    if ($this->getEngine()->isHTMLMailMode()) {
+      $map = $this->getEngine()->getConfig('phutil.codeblock.style-map');
+
+      if ($map) {
+        $raw_body = id(new PhutilPygmentizeParser())
+          ->setMap($map)
+          ->parse((string)$code_body);
+        $code_body = phutil_safe_html($raw_body);
+      }
+
+      $style_rules = array(
+        'padding: 6px 12px;',
+        'font-size: 13px;',
+        'font-weight: bold;',
+        'display: inline-block;',
+        'border-top-left-radius: 3px;',
+        'border-top-right-radius: 3px;',
+        'color: rgba(0,0,0,.75);',
+      );
+
+      if ($options['counterexample']) {
+        $style_rules[] = 'background: #f7e6e6';
+      } else {
+        $style_rules[] = 'background: rgba(71, 87, 120, 0.08);';
+      }
+
+      $header_attributes = array(
+        'style' => implode(' ', $style_rules),
+      );
+
+      $block_style = 'margin: 12px 0;';
+    } else {
+      $header_attributes = array(
+        'class' => 'remarkup-code-header',
+      );
+    }
+
     if ($options['name']) {
       $name_header = phutil_tag(
         'div',
-        array(
-          'class' => 'remarkup-code-header',
-        ),
+        $header_attributes,
         $options['name']);
     }
 
+    $class = 'remarkup-code-block';
+    if ($options['counterexample']) {
+      $class = 'remarkup-code-block code-block-counterexample';
+    }
+
+    $attributes = array(
+      'class' => $class,
+      'style' => $block_style,
+      'data-code-lang' => $options['lang'],
+      'data-sigil' => 'remarkup-code-block',
+    );
+
     return phutil_tag(
       'div',
-      array(
-        'class' => 'remarkup-code-block',
-        'data-code-lang' => $options['lang'],
-        'data-sigil' => 'remarkup-code-block',
-      ),
+      $attributes,
       array($name_header, $code_body));
   }
 
@@ -158,11 +202,32 @@ final class PhutilRemarkupCodeBlockRule extends PhutilRemarkupBlockRule {
     }
 
     $aux_style = null;
+
+    if ($this->getEngine()->isHTMLMailMode()) {
+      $aux_style = array(
+        'font: 11px/15px "Menlo", "Consolas", "Monaco", monospace;',
+        'padding: 12px;',
+        'margin: 0;',
+      );
+
+      if ($options['counterexample']) {
+        $aux_style[] = 'background: #f7e6e6;';
+      } else {
+        $aux_style[] = 'background: rgba(71, 87, 120, 0.08);';
+      }
+
+      $aux_style = implode(' ', $aux_style);
+    }
+
     if ($options['lines']) {
       // Put a minimum size on this because the scrollbar is otherwise
       // unusable.
       $height = max(6, (int)$options['lines']);
-      $aux_style = 'max-height: '.(2 * $height).'em;';
+      $aux_style = $aux_style
+        .' '
+        .'max-height: '
+        .(2 * $height)
+        .'em; overflow: auto;';
     }
 
     $engine = $this->getEngine()->getConfig('syntax-highlighter.engine');

@@ -178,7 +178,7 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
 
       $this->assertTrue(
         ($caught instanceof InvalidArgumentException),
-        "array_mergev() invalid on {$key}");
+        pht('%s invalid on %s', 'array_mergev()', $key));
     }
   }
 
@@ -213,7 +213,7 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
     $inputs = array(
       'empty' => array(),
       'stdClass' => array($object, $object),
-      'PhutilUtilsTestCase' => array($object, $this),
+      __CLASS__ => array($object, $this),
       'array' => array(array(), array()),
       'integer' => array($object, 1),
     );
@@ -231,7 +231,7 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
       'InvalidArgumentException');
   }
 
-  public function testAssertStringLike () {
+  public function testAssertStringLike() {
     $this->assertEqual(
       null,
       assert_stringlike(null));
@@ -371,7 +371,7 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
       $this->assertEqual(
         $expect,
         phutil_split_lines($input, $retain_endings = true),
-        "(Retained) ".addcslashes($input, "\r\n\\"));
+        pht('(Retained) %s', addcslashes($input, "\r\n\\")));
     }
 
     $discard_cases = array(
@@ -390,7 +390,7 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
       $this->assertEqual(
         $expect,
         phutil_split_lines($input, $retain_endings = false),
-        "(Discarded) ".addcslashes($input, "\r\n\\"));
+        pht('(Discarded) %s', addcslashes($input, "\r\n\\")));
     }
   }
 
@@ -471,6 +471,9 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
       '1 hour in seconds' => 3600,
       '1 day in seconds' => 86400,
       '3 days in seconds' => 259200,
+      '128 bits in bytes' => 16,
+      '1 byte in bytes' => 1,
+      '8 bits in bytes' => 1,
     );
 
     foreach ($cases as $input => $expect) {
@@ -487,6 +490,10 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
       '1 day in days',
       '-1 minutes in seconds',
       '1.5 minutes in seconds',
+      '7 bits in bytes',
+      '2 hours in bytes',
+      '1 dram in bytes',
+      '24 bits in seconds',
     );
 
     foreach ($bad_cases as $input) {
@@ -535,6 +542,64 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
     }
   }
 
+  public function testPhutilINIDecode() {
+    // Skip the test if we are using an older version of PHP that doesn't
+    // have the `parse_ini_string` function.
+    try {
+      phutil_ini_decode('');
+    } catch (PhutilMethodNotImplementedException $ex) {
+      $this->assertSkipped($ex->getMessage());
+    }
+
+    $valid_cases = array(
+      '' => array(),
+      'foo=' => array('foo' => ''),
+      'foo=bar' => array('foo' => 'bar'),
+      'foo = bar' => array('foo' => 'bar'),
+      "foo = bar\n" => array('foo' => 'bar'),
+      "foo\nbar = baz" => array('bar' => 'baz'),
+
+      "[foo]\nbar = baz" => array('foo' => array('bar' => 'baz')),
+      "[foo]\n[bar]\nbaz = foo" => array(
+        'foo' => array(),
+        'bar' => array('baz' => 'foo'),
+      ),
+      "[foo]\nbar = baz\n\n[bar]\nbaz = foo" => array(
+        'foo' => array('bar' => 'baz'),
+        'bar' => array('baz' => 'foo'),
+      ),
+
+      "; Comment\n[foo]\nbar = baz" => array('foo' => array('bar' => 'baz')),
+      "# Comment\n[foo]\nbar = baz" => array('foo' => array('bar' => 'baz')),
+
+      "foo = true\n[bar]\nbaz = false"
+        => array('foo' => true, 'bar' => array('baz' => false)),
+      "foo = 1\nbar = 1.234" => array('foo' => 1, 'bar' => 1.234),
+      'x = {"foo": "bar"}' => array('x' => '{"foo": "bar"}'),
+    );
+
+    foreach ($valid_cases as $input => $expect) {
+      $result = phutil_ini_decode($input);
+      $this->assertEqual($expect, $result, 'phutil_ini_decode('.$input.')');
+    }
+
+    $invalid_cases = array(
+      '[' =>
+        'syntax error, unexpected $end, expecting \']\' in Unknown on line 1',
+    );
+
+    foreach ($invalid_cases as $input => $expect) {
+      $caught = null;
+      try {
+        phutil_ini_decode($input);
+      } catch (Exception $ex) {
+        $caught = $ex;
+      }
+      $this->assertTrue($caught instanceof PhutilINIParserException);
+      $this->assertEqual($expect, $caught->getMessage());
+    }
+  }
+
   public function testCensorCredentials() {
     $cases = array(
       '' => '',
@@ -543,18 +608,18 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
       // NOTE: We're liberal about censoring here, since we can't tell
       // if this is a truncated password at the end of an input string
       // or a domain name. The version with a "/" isn't censored.
-      'http://example.com' => 'http://xxxxx',
+      'http://example.com' => 'http://********',
       'http://example.com/' => 'http://example.com/',
 
-      'http://username@example.com' => 'http://xxxxx@example.com',
-      'http://user:pass@example.com' => 'http://xxxxx@example.com',
+      'http://username@example.com' => 'http://********@example.com',
+      'http://user:pass@example.com' => 'http://********@example.com',
 
       // We censor these because they might be truncated credentials at the end
       // of the string.
-      'http://user' => 'http://xxxxx',
-      "http://user\n" => "http://xxxxx\n",
+      'http://user' => 'http://********',
+      "http://user\n" => "http://********\n",
 
-      'svn+ssh://user:pass@example.com' => 'svn+ssh://xxxxx@example.com',
+      'svn+ssh://user:pass@example.com' => 'svn+ssh://********@example.com',
     );
 
     foreach ($cases as $input => $expect) {
@@ -614,6 +679,209 @@ final class PhutilUtilsTestCase extends PhutilTestCase {
     $this->assertEqual(
       "PhutilTestPhobject::__set_state(array(\n))",
       phutil_var_export(new PhutilTestPhobject()));
+  }
+
+  public function testFnmatch() {
+    $cases = array(
+      '' => array(
+        array(''),
+        array('.', '/'),
+      ),
+      '*' => array(
+        array('file'),
+        array('dir/', '/dir'),
+      ),
+      '**' => array(
+        array('file', 'dir/', '/dir', 'dir/subdir/file'),
+        array(),
+      ),
+      '**/file' => array(
+        array('file', 'dir/file', 'dir/subdir/file', 'dir/subdir/subdir/file'),
+        array('file/', 'file/dir'),
+      ),
+      'file.*' => array(
+        array('file.php', 'file.a', 'file.'),
+        array('files.php', 'file.php/blah'),
+      ),
+      'fo?' => array(
+        array('foo', 'fot'),
+        array('fooo', 'ffoo', 'fo/', 'foo/'),
+      ),
+      'fo{o,t}' => array(
+        array('foo', 'fot'),
+        array('fob', 'fo/', 'foo/'),
+      ),
+      'fo{o,\\,}' => array(
+        array('foo', 'fo,'),
+        array('foo/', 'fo,/'),
+      ),
+      'fo{o,\\\\}' => array(
+        array('foo', 'fo\\'),
+        array('foo/', 'fo\\/'),
+      ),
+      '/foo' => array(
+        array('/foo'),
+        array('foo', '/foo/'),
+      ),
+
+      // Tests for various `fnmatch` flags.
+      '*.txt' => array(
+        array(
+          'file.txt',
+
+          // FNM_PERIOD
+          '.secret-file.txt',
+        ),
+        array(
+          // FNM_PATHNAME
+          'dir/file.txt',
+
+          // FNM_CASEFOLD
+          'file.TXT',
+        ),
+        '\\*.txt' => array(
+          array(
+            // FNM_NOESCAPE
+            '*.txt',
+          ),
+          array(
+            'file.txt',
+          ),
+        ),
+      ),
+    );
+
+    $invalid = array(
+      '{',
+      'asdf\\',
+    );
+
+    foreach ($cases as $input => $expect) {
+      list($matches, $no_matches) = $expect;
+
+      foreach ($matches as $match) {
+        $this->assertTrue(
+          phutil_fnmatch($input, $match),
+          pht('Expecting "%s" to match "%s".', $input, $match));
+      }
+
+      foreach ($no_matches as $no_match) {
+        $this->assertFalse(
+          phutil_fnmatch($input, $no_match),
+          pht('Expecting "%s" not to match "%s".', $input, $no_match));
+      }
+    }
+
+    foreach ($invalid as $input) {
+      $caught = null;
+      try {
+        phutil_fnmatch($input, '');
+      } catch (Exception $ex) {
+        $caught = $ex;
+      }
+
+      $this->assertTrue($caught instanceof InvalidArgumentException);
+    }
+  }
+
+  public function testJSONEncode() {
+    $in = array(
+      'example' => "Not Valid UTF8: \x80",
+    );
+
+    $caught = null;
+    try {
+      $value = phutil_json_encode($in);
+    } catch (Exception $ex) {
+      $caught = $ex;
+    }
+
+    $this->assertTrue(($caught instanceof Exception));
+  }
+
+  public function testHashComparisons() {
+    $tests = array(
+      array('1', '12', false),
+      array('0', '0e123', false),
+      array('0e123', '0e124', false),
+      array('', '0', false),
+      array('000', '0e0', false),
+      array('001', '002', false),
+      array('0', '', false),
+      array('987654321', '123456789', false),
+      array('A', 'a', false),
+      array('123456789', '123456789', true),
+      array('hunter42', 'hunter42', true),
+    );
+
+    foreach ($tests as $key => $test) {
+      list($u, $v, $expect) = $test;
+      $actual = phutil_hashes_are_identical($u, $v);
+      $this->assertEqual(
+        $expect,
+        $actual,
+        pht('Test Case: "%s" vs "%s"', $u, $v));
+    }
+  }
+
+  public function testVectorSortInt() {
+    $original = array(
+      ~PHP_INT_MAX,
+      -2147483648,
+      -5,
+      -3,
+      -1,
+      0,
+      1,
+      2,
+      3,
+      100,
+      PHP_INT_MAX,
+    );
+
+    $items = $this->shuffleMap($original);
+
+    foreach ($items as $key => $value) {
+      $items[$key] = (string)id(new PhutilSortVector())
+        ->addInt($value);
+    }
+
+    asort($items, SORT_STRING);
+
+    $this->assertEqual(
+      array_keys($original),
+      array_keys($items));
+  }
+
+  public function testVectorSortString() {
+    $original = array(
+      '',
+      "\1",
+      'A',
+      'AB',
+      'Z',
+      "Z\1",
+      'ZZZ',
+    );
+
+    $items = $this->shuffleMap($original);
+
+    foreach ($items as $key => $value) {
+      $items[$key] = (string)id(new PhutilSortVector())
+        ->addString($value);
+    }
+
+    asort($items, SORT_STRING);
+
+    $this->assertEqual(
+      array_keys($original),
+      array_keys($items));
+  }
+
+  private function shuffleMap(array $map) {
+    $keys = array_keys($map);
+    shuffle($keys);
+    return array_select_keys($map, $keys);
   }
 
 }
