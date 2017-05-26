@@ -129,7 +129,8 @@ final class PhutilJSON extends Phobject {
         // when pretty-printing values. Escaping slashes can defuse an attack
         // where the attacker embeds "</script>" inside a JSON string, but that
         // isn't relevant when rendering JSON for human viewers.
-        return json_encode($value, JSON_UNESCAPED_SLASHES);
+        // JSON_UNESCAPED_UNICODE and JSON_UNESCAPED_SLASHES appeared in the same PHP version 5.4.0.
+        return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
       } else {
         return json_encode($value);
       }
