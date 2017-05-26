@@ -1,3 +1,5 @@
+quack quack
+
 `libphutil` is a collection of utility classes and functions for PHP. Some
 features of the library include:
 
@@ -28,13 +30,33 @@ concrete implementations are provided:
   - `jsprintf()`: safely escape data for Javascript
   - `qsprintf()`: safely escape data for MySQL
 
+Alphabet
+
 **AAST/PHPAST**
 An abstract, abstract syntax tree which can make it easier to perform simple
 static analysis, and a concrete AST for PHP.
 
+(Does it port from diff-view to diff-view only, with no way to review history?)
+change above
+
+Here are
+ some new
+lines in
+the file
+
+
 **Remarkup**
 A Markdown-like lightweight markup language. Remarkup's syntax is defined by
 parser plugins and fairly easy to extend and configure.
+
+(Does it port from diff-view to diff-view only, with no way to review history?)
+change above
+
+Here are
+ some new
+lines in
+the file
+
 
 **Daemons**
 Enables running PHP scripts as stable, long-lived daemons.
