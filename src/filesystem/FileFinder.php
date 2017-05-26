@@ -104,6 +104,16 @@ final class FileFinder extends Phobject {
   }
 
   /**
+   * This is used when function fnmatch can't be found.
+   * Eg non-posix systems
+   * @param string unix style match, like "/*.php"
+   */
+  private function convertToRegex($match) {
+    $regex = str_replace('*','.*',$match);
+    return "/^(.*.{$regex})/i";
+  }
+
+  /**
    * @task internal
    */
   public function validateFile($file) {
@@ -115,10 +125,18 @@ final class FileFinder extends Phobject {
       }
     }
     foreach ($this->suffix as $curr_suffix) {
-      if (fnmatch($curr_suffix, $file)) {
-        $matches = true;
-        break;
+      if (function_exists('fnmatch')) {
+        if (fnmatch($curr_suffix, $file)) {
+          $matches = true;
+          break;
+        }
+      }else {
+        if (preg_match(FileFinder::convertToRegex($curr_suffix), $file)) {
+          $matches = true;
+          break;
+        }
       }
+      
     }
     if (!$matches) {
       return false;
@@ -126,9 +144,16 @@ final class FileFinder extends Phobject {
 
     $matches = (count($this->paths) == 0);
     foreach ($this->paths as $path) {
-      if (fnmatch($path, $this->root.'/'.$file)) {
-        $matches = true;
-        break;
+      if (function_exists('fnmatch')) {
+        if (fnmatch($path, $this->root.'/'.$file)) {
+          $matches = true;
+          break;
+        }
+      }else {
+        if (preg_match(FileFinder::convertToRegex($path), $this->root.'/'.$file)) {
+          $matches = true;
+          break;
+        }
       }
     }
 
@@ -137,7 +162,6 @@ final class FileFinder extends Phobject {
         || ($this->type == 'd' && !is_dir($fullpath))) {
       $matches = false;
     }
-
     return $matches;
   }
 
@@ -155,9 +179,16 @@ final class FileFinder extends Phobject {
       if ($dir == '') {
         $matches = true;
         foreach ($this->exclude as $exclude_path) {
-          if (fnmatch(ltrim($exclude_path, './'), $dir.$filename)) {
-            $matches = false;
-            break;
+          if (function_exists('fnmatch')) {
+            if (fnmatch(ltrim($exclude_path, './'), $dir.$filename)) {
+              $matches = true;
+              break;
+            }
+          }else {
+            if (preg_match(FileFinder::convertToRegex(ltrim($exclude_path, './')), $dir.$filename)) {
+              $matches = true;
+              break;
+            }
           }
         }
         if (!$matches) {
