@@ -112,7 +112,7 @@ final class Filesystem extends Phobject {
    * @return boolean indicating whether the file was changed by this function.
    */
   public static function writeFileIfChanged($path, $data) {
-    if (file_exists($path)) {
+    if (file_exists(realpath($path))) {
       $current = self::readFile($path);
       if ($current === $data) {
         return false;
@@ -295,7 +295,7 @@ final class Filesystem extends Phobject {
 
     $path = self::resolvePath($path);
 
-    if (!file_exists($path)) {
+    if (!file_exists(realpath($path))) {
       return;
     }
 
@@ -639,7 +639,7 @@ final class Filesystem extends Phobject {
     }
 
     $dir = dirname($path);
-    if ($recursive && !file_exists($dir)) {
+    if ($recursive && !file_exists(realpath($dir))) {
       // Note: We could do this with the recursive third parameter of mkdir(),
       // but then we loose the helpful FilesystemExceptions we normally get.
       self::createDirectory($dir, $umask, true);
@@ -946,7 +946,7 @@ final class Filesystem extends Phobject {
    * @task    path
    */
   public static function pathExists($path) {
-    return file_exists($path) || is_link($path);
+    return file_exists(realpath($path)) || is_link($path);
   }
 
 
@@ -1052,7 +1052,7 @@ final class Filesystem extends Phobject {
    * @task   assert
    */
   public static function assertNotExists($path) {
-    if (file_exists($path) || is_link($path)) {
+    if (file_exists(realpath($path)) || is_link($path)) {
       throw new FilesystemException(
         $path,
         pht("Path '%s' already exists!", $path));
